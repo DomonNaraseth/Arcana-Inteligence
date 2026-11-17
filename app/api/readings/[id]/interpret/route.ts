@@ -15,7 +15,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const { supabase, userKey } = await getContext();
+    const { supabase, userKey, isGuest } = await getContext();
     const bundle = await getReadingBundle(supabase, id);
     if (!bundle) return fail("not_found", "ไม่พบการอ่านไพ่นี้", 404);
 
@@ -39,7 +39,9 @@ export async function POST(
       if (wallet.balance < cost) {
         return fail(
           "insufficient_credits",
-          `เครดิตไม่พอ — การอ่านไพ่ชุดนี้ใช้ ${cost} เครดิต คุณมี ${wallet.balance} เครดิต ไพ่ของคุณถูกบันทึกไว้แล้ว กลับมาอ่านได้เมื่อได้รับเครดิตรายวันหรือเติมเครดิต`,
+isGuest && settings.credits.signup_bonus > 0
+            ? `การอ่านไพ่ชุดนี้ใช้ ${cost} เครดิต — สมัครสมาชิกฟรีเพื่อรับ ${settings.credits.signup_bonus} เครดิตแล้วกลับมาอ่านไพ่ชุดนี้ได้ทันที ไพ่ของคุณถูกบันทึกไว้แล้ว`
+            : `เครดิตไม่พอ — การอ่านไพ่ชุดนี้ใช้ ${cost} เครดิต คุณมี ${wallet.balance} เครดิต ไพ่ของคุณถูกบันทึกไว้แล้ว กลับมาอ่านได้เมื่อเติมเครดิตหรือสมัครสมาชิก`,
           402,
         );
       }

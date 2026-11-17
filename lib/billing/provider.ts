@@ -30,6 +30,20 @@ export function checkoutExpiry(nowMs = Date.now()): number {
   return Math.floor(nowMs / 1000) + 31 * 60;
 }
 
+export interface SubscriptionCheckoutInput {
+  paymentId: string;
+  /** the tier the plan grants; also names the provider-side product */
+  planId: "basic" | "premium";
+  planName: string;
+  /** price per month, smallest currency unit */
+  amountMinor: number;
+  currency: "thb";
+  successUrl: string;
+  cancelUrl: string;
+  customerEmail?: string | null;
+  expiresAt: number;
+}
+
 export interface CheckoutSession {
   sessionId: string;
   url: string;
@@ -45,13 +59,50 @@ export interface SessionState {
   amountMinor: number | null;
   currency: string | null;
   paymentRef: string | null;
+  mode: "payment" | "subscription";
+  subscriptionId: string | null;
+  customerId: string | null;
+}
+
+/** Provider-reported state of a recurring membership, normalised. */
+export interface SubscriptionState {
+  id: string;
+  /** "active" also covers a payment being retried — access ends when the paid period does */
+  status: "active" | "canceled" | "other";
+  /** unix seconds */
+  currentPeriodEnd: number | null;
+  cancelAtPeriodEnd: boolean;
+  customerId: string | null;
+}
+
+export interface InvoiceState {
+  id: string;
+  subscriptionId: string | null;
+  amountPaid: number;
+  currency: string | null;
+  /** "subscription_create" for the first invoice, "subscription_cycle" for renewals */
+  billingReason: string | null;
 }
 
 export interface BillingEvent {
   id: string;
   type: string;
-  kind: "paid" | "failed" | "expired" | "ignored";
+  livemode: boolean;
+  kind:
+    | "paid"
+    | "failed"
+    | "expired"
+    | "subscription_changed"
+    | "subscription_ended"
+    | "invoice_paid"
+    | "refunded"
+    | "disputed"
+    | "ignored";
   session: SessionState | null;
+  subscription: SubscriptionState | null;
+  invoice: InvoiceState | null;
+  /** provider payment reference of a refunded or disputed charge */
+  paymentRef: string | null;
 }
 
 export interface PaymentProvider {
@@ -60,7 +111,11 @@ export interface PaymentProvider {
   livemode: boolean;
   webhookConfigured: boolean;
   createCheckout(input: CheckoutInput): Promise<CheckoutSession>;
+  createSubscriptionCheckout(input: SubscriptionCheckoutInput): Promise<CheckoutSession>;
   getSession(sessionId: string): Promise<SessionState>;
+  getSubscription(subscriptionId: string): Promise<SubscriptionState>;
+  /** A provider-hosted page where the customer cancels or changes the card. */
+  createPortalSession(customerId: string, returnUrl: string): Promise<{ url: string }>;
   /** Verifies the signature and parses the event. Throws WebhookSignatureError. */
   parseWebhook(rawBody: string, signatureHeader: string | null): BillingEvent;
 }
@@ -75,6 +130,7 @@ export class BillingProviderError extends Error {
   constructor(
     message: string,
     public status?: number,
+    public code?: string,
   ) {
     super(message);
   }

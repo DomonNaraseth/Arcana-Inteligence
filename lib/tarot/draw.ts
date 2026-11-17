@@ -92,7 +92,19 @@ export function drawAdditional(
   }));
 }
 
-/** Deterministic daily card (not security-sensitive): stable per user per day. */
+/**
+ * The card of the day: one card from the full deck, drawn with the same CSPRNG
+ * as a spread. The caller stores it once per user per day; it is never redrawn.
+ */
+export function drawDailyCard(options: DrawOptions = {}): { cardId: string; orientation: "upright" | "reversed" } {
+  const reversalProbability = clamp01(
+    options.reversalProbability ?? DEFAULT_REVERSAL_PROBABILITY,
+  );
+  const card = DECK[randomInt(0, DECK.length)];
+  return { cardId: card.id, orientation: secureChance(reversalProbability) ? "reversed" : "upright" };
+}
+
+/** Deterministic pick (not security-sensitive) — kept for previews and tests. */
 export function dailyCardIndex(seed: string): { index: number; reversed: boolean } {
   let h = 2166136261;
   for (let i = 0; i < seed.length; i++) {

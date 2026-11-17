@@ -195,7 +195,7 @@ Migration: `supabase/migrations/0004_arcana_payments.sql`. Code: `lib/billing/` 
 
 Tables: `arcana_payments` (intent → outcome), `arcana_payment_events` (received webhook events, audit only). Both have RLS on and no policies. Guests may buy unless `billing.require_account` is set; `arcana_claim_guest()` moves a guest's credits, payments and tier into the account on sign-in.
 
-Not implemented: automatic refunds (refund in Stripe, then correct credits in Admin → Users), recurring subscriptions, invoices/tax receipts. With no `STRIPE_SECRET_KEY` the checkout endpoint returns `billing_not_configured` and the UI says purchases are not available.
+Not implemented: partial refunds and refunds of membership charges (refund in Stripe, then correct credits in Admin → Users), plan switching in place, tax (see 6e). With no `STRIPE_SECRET_KEY` the checkout endpoints return `billing_not_configured` and the UI says purchases are not available.
 
 `scripts/dev-mock-billing.mjs` runs the app against an in-memory stand-in for the Stripe API (dev only — `STRIPE_API_BASE` is ignored in production).
 
@@ -205,6 +205,47 @@ Testing against a real Stripe sandbox, with no API key in the project — both t
 
 - `node scripts/dev-stripe-sandbox.mjs` — the app on :3002 with real hosted checkout and real webhooks (`stripe listen`). Needs the credit system switched on.
 - `STRIPE_SANDBOX=1 npx vitest run tests/integration` — the adapter alone (create, idempotent retry, unknown session, real signed webhook); touches no application database. With `STRIPE_SANDBOX_PAY_FILE=<path>` it waits for the checkout to be paid with a test card and checks that session and its webhook.
+
+## 6e. Daily card, memberships and the revenue model
+
+Migration: `supabase/migrations/0006_arcana_daily_subscriptions.sql`.
+
+### The model (all numbers are runtime settings — Admin → Settings)
+
+| Layer | What the user gets | Default |
+| --- | --- | --- |
+| Free | Daily card + shared message of the day, every day; card library, history, journal | no recurring free credits (`credits.daily_free.free = 0`) |
+| Free account | one-time sign-up bonus; a streak reward every N consecutive daily cards | `credits.signup_bonus = 6`, `daily.streak_days = 7`, `daily.streak_reward = 3` |
+| Membership (monthly) | credits granted at every paid invoice, more free follow-ups per reading | `plans`: Plus ฿149 → 60 credits, Premium ฿299 → 150 credits |
+| Top-up packs | one-time credits | `packages`: ฿99 → 30, ฿199 → 70, ฿399 → 150 |
+
+Why it is shaped this way: a full reading on the deep model costs roughly ฿3–4.5 in AI tokens (measured from `arcana_ai_usage`: about 8.4k input and 8.2k output tokens), so recurring free readings lose money at volume. The free habit is therefore the daily card, whose AI message is generated at most once per card and orientation per day with the fast model and shared by everyone. Readings cost 2 / 3 / 4 credits by spread size, so a credit costs about ฿1.2–1.5 to serve and sells for ฿2–3.3. Guests get no trial credits by default (`credits.guest_trial = 0`): a trial bound to a browser cookie can be repeated with a fresh browser profile, a sign-up bonus cannot.
+
+### Daily card
+
+- `POST /api/daily` draws with `drawDailyCard()` (node:crypto) and stores the card through `arcana_daily_draw()` — one row per user per Bangkok day, insert-only, so a second call returns the same card. The AI never sees a choice to make.
+- The message of the day (`lib/ai/daily.ts`) is validated in code (Zod shape, and it may name no card other than the one drawn) before `arcana_daily_message_put()` stores it; the first writer wins. If the AI is not configured or the output is rejected, the page shows the knowledge-base meaning — never invented text.
+- Streak: `arcana_daily_streak()`; every completed cycle grants bonus credits to signed-in accounts once (`streak:<day>` idempotency key), only while credits are enabled.
+
+### Memberships
+
+- A membership is a recurring credit purchase that also sets the tier. `POST /api/billing/subscribe` requires a signed-in account, records a `kind = 'subscription'` row in `arcana_payments` and opens a Checkout Session in `subscription` mode (one Stripe Product per plan, `arcana_plan_<tier>`).
+- First payment: `checkout.session.completed` → `arcana_fulfill_payment()` (credits) → `arcana_activate_subscription()` (tier; subscription state read from Stripe server-side).
+- Renewals: `invoice.paid` → `arcana_renew_subscription()` — one paid row and one credit grant per invoice id. The plan is resolved from the subscription id stored in the database, not from event metadata; the credits come from the current `plans` setting.
+- Changes: `customer.subscription.updated|deleted` → `arcana_sync_subscription()`. Access runs to the end of the paid period plus two days of grace; a failed renewal is not extended, so it lapses on its own.
+- Self-service: `POST /api/billing/portal` opens Stripe's Customer Portal (cancel at period end, card, invoices). The customer id is looked up server-side.
+- Refunds: `charge.refunded` (full) and `charge.dispute.created` → `arcana_refund_payment()` marks a credit-pack payment refunded and takes back the unspent part of its credits, never below zero.
+- Precedence: a provider event overwrites a manual tier; `arcana_admin_set_tier()` overwrites a provider-managed one until the next provider event.
+
+Webhook events to select in Stripe: the four `checkout.session.*` events plus `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `charge.refunded`, `charge.dispute.created`. A restricted key needs write access to Checkout Sessions, Products and Customer portal, and read access to Subscriptions.
+
+### Tax — a decision for the owner, deliberately not automated
+
+`automatic_tax` is off. Before switching it on: decide whether listed prices include VAT, and add the business's tax registration in Stripe (Tax → Locations). Without an active registration Stripe collects no tax and reports no error, so turning the flag on alone changes nothing.
+
+### Verified against a real Stripe sandbox
+
+`tests/integration/stripe-membership.test.ts` (opt-in) drives a real subscription checkout, the first credit grant, the billing portal, a renewal invoice, a scheduled cancellation and the end of the subscription through the same service code as the webhook route, using a throwaway guest. Not covered by it: the HTTP routes themselves (they need the credit system on) and refunds.
 
 ## 7. Folder structure
 

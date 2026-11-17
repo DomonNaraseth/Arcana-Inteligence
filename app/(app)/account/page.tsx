@@ -3,10 +3,11 @@ import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { AuthPanel } from "@/components/account/AuthPanel";
 import { BuyCredits } from "@/components/account/BuyCredits";
+import { ManageSubscriptionButton } from "@/components/account/MembershipActions";
 import { PaymentReturn } from "@/components/account/PaymentReturn";
 import { aiStatus } from "@/lib/ai/provider";
 import { billingStatus, formatThb } from "@/lib/billing/provider";
-import type { PaymentRow } from "@/lib/billing/service";
+import type { MySubscription, PaymentRow } from "@/lib/billing/service";
 import { TIER_TH, getWallet } from "@/lib/credits";
 import { formatThaiDate } from "@/lib/format";
 import { getSettings } from "@/lib/settings";
@@ -20,6 +21,13 @@ const KIND_TH: Record<string, string> = {
   purchase: "เติมเครดิต",
   spend: "ใช้เครดิต",
   refund: "คืนเครดิต",
+  bonus: "เครดิตโบนัส",
+  subscription: "เครดิตสมาชิกรายเดือน",
+};
+const BONUS_TH: Record<string, string> = {
+  "sign-up bonus": "โบนัสสมัครสมาชิก",
+  "guest trial": "เครดิตทดลองใช้",
+  "repeat guest trial voided": "ปรับเครดิตทดลองใช้ซ้ำ",
 };
 const FEATURE_TH: Record<string, string> = {
   interpret: "อ่านไพ่",
@@ -42,9 +50,10 @@ export default async function AccountPage({
 }) {
   const { supabase, user, isGuest } = await getContext();
 
-  const [settings, wallet, role, readings, journals, usage, ai] = await Promise.all([
+  const [settings, wallet, subscriptionRes, role, readings, journals, usage, ai] = await Promise.all([
     getSettings(supabase),
     getWallet(supabase),
+    supabase.rpc("arcana_my_subscription"),
     supabase.rpc("arcana_admin_role"),
     supabase.from("arcana_readings").select("id", { count: "exact", head: true }),
     supabase.from("arcana_journals").select("id", { count: "exact", head: true }),
@@ -66,6 +75,8 @@ export default async function AccountPage({
   const used = (f: string) => today.filter((u) => u.feature === f).length;
   const adminRole = role.data === "owner" || role.data === "admin" ? (role.data as string) : null;
   const creditsOn = settings.credits.enabled && wallet;
+  const subscription = (subscriptionRes.data ?? null) as MySubscription | null;
+  const member = Boolean(subscription?.active && wallet && wallet.tier !== "free");
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -161,13 +172,53 @@ export default async function AccountPage({
                 เครดิตของฉัน
               </h2>
               <p className="mt-1 text-sm text-ivory-dim">
-                แพ็กเกจ {TIER_TH[wallet.tier]} · เติมให้ถึง {wallet.daily} เครดิตทุกวัน
+                แพ็กเกจ {TIER_TH[wallet.tier]}
+                {wallet.daily > 0 && ` · เติมให้ถึง ${wallet.daily} เครดิตทุกวัน`}
               </p>
             </div>
             <p className="text-4xl font-semibold tabular-nums text-gold-light">
               {wallet.balance}
               <span className="ml-2 font-sans text-sm font-normal text-ivory-dim">เครดิต</span>
             </p>
+          </div>
+
+          <div className="mt-5 rounded-xl border border-gold/25 bg-gold/5 px-4 py-4">
+            {member && subscription ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-ivory">
+                  <span className="font-medium text-gold-light">สมาชิก {TIER_TH[wallet.tier]}</span>
+                  {subscription.current_period_end && (
+                    <span className="block text-ivory-dim">
+                      {subscription.source !== "stripe"
+                        ? "ใช้ได้ถึง"
+                        : subscription.cancel_at_period_end
+                          ? "ยกเลิกแล้ว — ใช้สิทธิ์ได้ถึง"
+                          : "ต่ออายุอัตโนมัติประมาณ"}{" "}
+                      {formatThaiDate(subscription.current_period_end)}
+                    </span>
+                  )}
+                </p>
+                {subscription.source === "stripe" && subscription.manageable && billing.configured && (
+                  <div>
+                    <ManageSubscriptionButton />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-ivory">
+                  สมาชิกรายเดือนได้เครดิตทุกเดือนในราคาต่อเครดิตที่ถูกกว่า
+                  {isGuest && settings.credits.signup_bonus > 0 && (
+                    <span className="block text-ivory-dim">
+                      สมัครสมาชิกฟรีด้านล่างรับ {settings.credits.signup_bonus} เครดิตทันที
+                    </span>
+                  )}
+                </p>
+                <Link href="/pricing" className="btn-ghost px-5 py-2.5 text-sm">
+                  ดูแพ็กเกจ
+                </Link>
+              </div>
+            )}
           </div>
 
           <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-3">
@@ -182,6 +233,9 @@ export default async function AccountPage({
               <dt className="text-ivory-dim">ถามต่อ 1 ครั้ง</dt>
               <dd className="mt-1 text-ivory">
                 {settings.credits.cost_followup === 0 ? "ฟรี" : `${settings.credits.cost_followup} เครดิต`}
+                <span className="block text-xs text-ivory-dim">
+                  ฟรี {settings.credits.free_followups[wallet.tier]} ครั้งแรกของแต่ละการอ่าน
+                </span>
               </dd>
             </div>
             <div className="rounded-xl border border-white/10 px-4 py-3">
@@ -237,7 +291,11 @@ export default async function AccountPage({
                   <li key={i} className="flex items-center justify-between gap-4 py-2.5">
                     <span className="min-w-0">
                       <span className="block truncate text-ivory">
-                        {t.kind === "spend" ? (FEATURE_TH[t.feature ?? ""] ?? "ใช้เครดิต") : KIND_TH[t.kind]}
+                        {t.kind === "spend"
+                          ? (FEATURE_TH[t.feature ?? ""] ?? "ใช้เครดิต")
+                          : t.kind === "bonus"
+                            ? (BONUS_TH[t.note ?? ""] ?? (t.note?.startsWith("daily card streak") ? "รางวัลเปิดไพ่ต่อเนื่อง" : KIND_TH.bonus))
+                            : KIND_TH[t.kind]}
                       </span>
                       <span className="block text-xs text-ivory-dim">{formatThaiDate(t.created_at, true)}</span>
                     </span>

@@ -34,7 +34,7 @@ export function FollowUpChat({
   extraCount: number;
   maxExtra: number;
   onNewCard: (card: DrawnCard, data: TarotCard | null) => void;
-  credit: { balance: number; followupCost: number; clarifierCost: number } | null;
+  credit: { balance: number; followupCost: number; clarifierCost: number; freeFollowups: number } | null;
   onBalance: (balance: number) => void;
 }) {
   const [messages, setMessages] = useState<ChatItem[]>(
@@ -93,7 +93,9 @@ export function FollowUpChat({
     }
   }
 
-  const askCost = credit?.followupCost ?? 0;
+  const asked = messages.filter((m) => m.role === "user").length;
+  const freeLeft = credit ? Math.max(0, credit.freeFollowups - asked) : 0;
+  const askCost = credit && freeLeft === 0 ? credit.followupCost : 0;
   const drawCost = askCost + (credit?.clarifierCost ?? 0);
   const canAsk = !credit || credit.balance >= askCost;
   const canDraw = extraCount < maxExtra && (!credit || credit.balance >= drawCost);
@@ -211,6 +213,7 @@ export function FollowUpChat({
           </button>
           <span className="text-xs text-ivory-dim/70">
             ไพ่เสริม {extraCount}/{maxExtra}
+            {credit && freeLeft > 0 && ` · ถามฟรีได้อีก ${freeLeft} ครั้ง`}
             {credit && ` · คงเหลือ ${credit.balance} เครดิต`}
           </span>
         </div>

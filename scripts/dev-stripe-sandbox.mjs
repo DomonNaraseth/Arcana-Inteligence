@@ -21,6 +21,11 @@ const WEBHOOK_EVENTS = [
   "checkout.session.async_payment_succeeded",
   "checkout.session.async_payment_failed",
   "checkout.session.expired",
+  "customer.subscription.updated",
+  "customer.subscription.deleted",
+  "invoice.paid",
+  "charge.refunded",
+  "charge.dispute.created",
 ];
 
 let account;
@@ -55,6 +60,8 @@ const app = spawn(process.execPath, [next, "dev", "-p", String(APP_PORT)], {
     STRIPE_SECRET_KEY: "sk_test_relayed_by_stripe_cli",
     STRIPE_WEBHOOK_SECRET: webhookSecret,
     STRIPE_API_BASE: `http://localhost:${RELAY_PORT}`,
+    // memberships normally need a signed-in account; a dev build may test as a guest
+    ARCANA_DEV_GUEST_SUBSCRIBE: "1",
   },
 });
 const stop = () => {

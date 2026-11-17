@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { fail } from "@/lib/api";
 import { BillingProviderError, billingProvider } from "@/lib/billing/provider";
-import { fulfillFromSession, markUnsuccessful } from "@/lib/billing/service";
+import { markUnsuccessful, settlePaidSession } from "@/lib/billing/service";
 import { getWallet } from "@/lib/credits";
 import { ConfigError, getContext } from "@/lib/supabase/server";
 
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       // bind the provider's answer to this payment before acting on it
       if (session.paymentId === parsed.data.paymentId) {
         if (session.paid) {
-          const result = await fulfillFromSession(supabase, session);
+          const result = await settlePaidSession(supabase, provider, session);
           if (result.ok) {
             status = "paid";
             credited = result.credited ?? 0;

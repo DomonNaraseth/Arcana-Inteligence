@@ -6,6 +6,7 @@ import {
   followUpCost,
   interpretCost,
   parseSettings,
+  planFor,
   priceFor,
   promptVersionFor,
   settingsSchemas,
@@ -51,9 +52,46 @@ describe("credit pricing", () => {
     expect(interpretCost(s, 12)).toBe(s.credits.cost_interpret.large);
   });
 
-  it("adds the clarifier cost only when a card is drawn", () => {
-    expect(followUpCost(s, false)).toBe(s.credits.cost_followup);
-    expect(followUpCost(s, true)).toBe(s.credits.cost_followup + s.credits.cost_clarifier);
+  it("gives each reading a few free follow-ups, more for higher tiers", () => {
+    const free = s.credits.free_followups.free;
+    expect(followUpCost(s, false, 0, "free")).toBe(0);
+    expect(followUpCost(s, false, free - 1, "free")).toBe(0);
+    expect(followUpCost(s, false, free, "free")).toBe(s.credits.cost_followup);
+    expect(followUpCost(s, false, free, "premium")).toBe(0);
+    expect(s.credits.free_followups.premium).toBeGreaterThan(s.credits.free_followups.basic);
+  });
+
+  it("adds the clarifier cost only when a card is drawn, free follow-up or not", () => {
+    expect(followUpCost(s, true, 0, "free")).toBe(s.credits.cost_clarifier);
+    expect(followUpCost(s, true, 99, "free")).toBe(s.credits.cost_followup + s.credits.cost_clarifier);
+  });
+
+  it("keeps a credits row saved before the newer options existed", () => {
+    const old = {
+      enabled: true,
+      daily_free: { free: 3, basic: 10, premium: 30, unlimited: 150 },
+      cost_interpret: { small: 1, medium: 2, large: 3 },
+      cost_followup: 0,
+      cost_clarifier: 1,
+    };
+    const parsed = parseSettings({ credits: old });
+    expect(parsed.credits.enabled).toBe(true);
+    expect(parsed.credits.cost_interpret.medium).toBe(2);
+    expect(parsed.credits.signup_bonus).toBe(6);
+    expect(parsed.credits.guest_trial).toBe(0);
+    expect(parsed.credits.free_followups.free).toBe(2);
+  });
+
+  it("sells memberships that are better value per credit than any top-up pack", () => {
+    const perCredit = (price: number, credits: number) => price / credits;
+    const cheapestPack = Math.min(...s.packages.map((x) => perCredit(x.price_thb, x.credits)));
+    for (const plan of s.plans) {
+      expect(planFor(s, plan.id)).toEqual(plan);
+      expect(perCredit(plan.price_thb, plan.monthly_credits)).toBeLessThan(cheapestPack);
+    }
+    expect(planFor(s, "unlimited")).toBeNull();
+    // free users are not handed recurring AI readings by default
+    expect(s.credits.daily_free.free).toBe(0);
   });
 });
 

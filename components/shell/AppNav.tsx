@@ -3,15 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { BookHeart, History, Home, Library, Sparkles, UserRound } from "lucide-react";
+import { BookHeart, History, Home, Library, Sparkles, Sun, UserRound } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 
 const LINKS = [
-  { href: "/home", label: "หน้าหลัก", icon: Home },
-  { href: "/ask", label: "ถามไพ่", icon: Sparkles },
-  { href: "/history", label: "ประวัติ", icon: History },
-  { href: "/journal", label: "บันทึก", icon: BookHeart },
-  { href: "/cards", label: "คลังไพ่", icon: Library },
+  { href: "/home", label: "หน้าหลัก", icon: Home, mobile: true },
+  { href: "/daily", label: "ไพ่ประจำวัน", icon: Sun, mobile: true },
+  { href: "/ask", label: "ถามไพ่", icon: Sparkles, mobile: true },
+  { href: "/history", label: "ประวัติ", icon: History, mobile: true },
+  { href: "/journal", label: "บันทึก", icon: BookHeart, mobile: true },
+  { href: "/cards", label: "คลังไพ่", icon: Library, mobile: false },
+  { href: "/pricing", label: "แพ็กเกจ", icon: Sparkles, mobile: false },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -64,7 +66,7 @@ export function AppNav({ signedIn }: { signedIn: boolean }) {
         aria-label="เมนูหลัก (มือถือ)"
       >
         <ul className="mx-auto flex max-w-md justify-between px-2 pb-[env(safe-area-inset-bottom)]">
-          {LINKS.map((l) => {
+          {LINKS.filter((l) => l.mobile).map((l) => {
             const active = isActive(pathname, l.href);
             return (
               <li key={l.href} className="flex-1">

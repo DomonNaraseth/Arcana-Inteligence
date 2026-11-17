@@ -42,10 +42,12 @@ export async function POST(
       return fail("quota_exceeded", "วันนี้คุณถามต่อครบจำนวนที่กำหนดแล้ว กลับมาใหม่พรุ่งนี้", 429);
     }
 
-    const cost = settings.credits.enabled ? followUpCost(settings, drawCard) : 0;
-    if (cost > 0) {
+    let cost = 0;
+    if (settings.credits.enabled) {
       const wallet = await getWallet(supabase);
       if (!wallet) return fail("server_error", "ตรวจสอบเครดิตไม่สำเร็จ กรุณาลองใหม่", 500);
+      const asked = bundle.messages.filter((m) => m.role === "user").length;
+      cost = followUpCost(settings, drawCard, asked, wallet.tier);
       if (wallet.balance < cost) {
         return fail(
           "insufficient_credits",

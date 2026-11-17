@@ -52,6 +52,10 @@ interface Props {
     interpretCost: number;
     followupCost: number;
     clarifierCost: number;
+    /** follow-up questions per reading that cost nothing */
+    freeFollowups: number;
+    /** > 0 when the visitor is a guest who would get welcome credits by signing up */
+    signupBonus: number;
   } | null;
   isGuest: boolean;
 }
@@ -336,10 +340,22 @@ export function ReadingExperience({
                   : `ใช้ ${credit.interpretCost} เครดิต · คุณมี ${balance} เครดิต`}
                 {cannotAfford && (
                   <span className="mt-1 block text-amber-200">
-                    เครดิตไม่พอ — ไพ่ชุดนี้ถูกบันทึกไว้แล้ว กลับมาอ่านได้เมื่อได้รับเครดิตรายวัน{" "}
-                    <Link href="/account" className="underline underline-offset-4">
-                      ดูเครดิตของฉัน
-                    </Link>
+                    {credit.signupBonus > 0 ? (
+                      <>
+                        ไพ่ชุดนี้ถูกบันทึกไว้แล้ว — สมัครสมาชิกฟรีรับ {credit.signupBonus} เครดิต
+                        แล้วกลับมาอ่านได้ทันที{" "}
+                        <Link href="/account" className="underline underline-offset-4">
+                          สมัครฟรีด้วย Google
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        เครดิตไม่พอ — ไพ่ชุดนี้ถูกบันทึกไว้แล้ว กลับมาอ่านได้เมื่อเติมเครดิตหรือสมัครสมาชิก{" "}
+                        <Link href="/pricing" className="underline underline-offset-4">
+                          ดูแพ็กเกจ
+                        </Link>
+                      </>
+                    )}
                   </span>
                 )}
               </p>
@@ -412,6 +428,7 @@ export function ReadingExperience({
                     balance,
                     followupCost: credit.followupCost,
                     clarifierCost: credit.clarifierCost,
+                    freeFollowups: credit.freeFollowups,
                   }
                 : null
             }

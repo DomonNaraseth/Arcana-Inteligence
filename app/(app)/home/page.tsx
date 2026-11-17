@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Flame, Sparkles } from "lucide-react";
+import { CardBack } from "@/components/tarot/CardBack";
 import { aiStatus } from "@/lib/ai/provider";
 import type { ReadingRow } from "@/lib/data/readings";
-import { bangkokDateKey, formatThaiDate } from "@/lib/format";
+import { getDailyState, type DailyState } from "@/lib/data/daily";
+import { formatThaiDate } from "@/lib/format";
 import { getContext, supabaseConfigured } from "@/lib/supabase/server";
-import { dailyCardIndex } from "@/lib/tarot/draw";
 import { DEFAULT_KNOWLEDGE, getKnowledge } from "@/lib/tarot/knowledge";
 
 export const metadata: Metadata = { title: "หน้าหลัก" };
@@ -20,13 +21,12 @@ const QUICK = [
 
 export default async function HomePage() {
   let recent: Pick<ReadingRow, "id" | "question" | "spread_id" | "status" | "title" | "tendency" | "created_at">[] = [];
-  let seed = "guest";
+  let daily: DailyState | null = null;
   let kb = DEFAULT_KNOWLEDGE;
   if (supabaseConfigured()) {
     try {
-      const { supabase, userKey } = await getContext();
-      seed = userKey;
-      kb = await getKnowledge(supabase);
+      const { supabase } = await getContext();
+      [kb, daily] = await Promise.all([getKnowledge(supabase), getDailyState(supabase)]);
       const { data } = await supabase
         .from("arcana_readings")
         .select("id, question, spread_id, status, title, tendency, created_at")
@@ -38,9 +38,8 @@ export default async function HomePage() {
     }
   }
 
-  const today = bangkokDateKey();
-  const pick = dailyCardIndex(`${seed}|${today}`);
-  const card = kb.cards[pick.index];
+  const todayCard = daily?.today ? kb.card(daily.today.card_id) : undefined;
+  const todayReversed = daily?.today?.orientation === "reversed";
   const ai = await aiStatus();
 
   return (
@@ -88,36 +87,60 @@ export default async function HomePage() {
           <h2 id="daily-title" className="mt-3 text-2xl font-semibold">
             ไพ่ประจำวันของคุณ
           </h2>
-          <div className="mt-6 flex gap-5">
-            <Link
-              href={`/cards/${card.id}`}
-              className="relative aspect-[10/17] w-28 shrink-0 overflow-hidden rounded-xl border border-gold/50 shadow-card sm:w-32"
-            >
-              <Image
-                src={card.image}
-                alt={card.name}
-                fill
-                sizes="140px"
-                className={pick.reversed ? "rotate-180 object-cover" : "object-cover"}
-              />
-            </Link>
-            <div className="min-w-0">
-              <h3 className="text-xl font-semibold text-gold-light">{card.name}</h3>
-              <p className="text-sm text-ivory-dim">
-                {card.nameTh} · {pick.reversed ? "กลับหัว" : "ตั้งตรง"}
-              </p>
-              <p className="mt-3 text-sm text-ivory">
-                {pick.reversed ? card.reversedTh : card.uprightTh}
-              </p>
+          {todayCard ? (
+            <>
+              <div className="mt-6 flex gap-5">
+                <Link
+                  href="/daily"
+                  className="relative aspect-[10/17] w-28 shrink-0 overflow-hidden rounded-xl border border-gold/50 shadow-card sm:w-32"
+                >
+                  <Image
+                    src={todayCard.image}
+                    alt={todayCard.name}
+                    fill
+                    sizes="140px"
+                    className={todayReversed ? "rotate-180 object-cover" : "object-cover"}
+                  />
+                </Link>
+                <div className="min-w-0">
+                  <h3 className="text-xl font-semibold text-gold-light">{todayCard.name}</h3>
+                  <p className="text-sm text-ivory-dim">
+                    {todayCard.nameTh} · {todayReversed ? "กลับหัว" : "ตั้งตรง"}
+                  </p>
+                  <p className="mt-3 line-clamp-4 text-sm text-ivory">
+                    {todayReversed ? todayCard.reversedTh : todayCard.uprightTh}
+                  </p>
+                </div>
+              </div>
+              <Link href="/daily" className="btn-ghost mt-6 px-5 py-2.5 text-sm">
+                อ่านสารประจำวันของคุณ <ArrowRight className="h-4 w-4" />
+              </Link>
+            </>
+          ) : (
+            <div className="mt-6 flex items-center gap-5">
+              <Link
+                href="/daily"
+                aria-label="เปิดไพ่ประจำวัน"
+                className="relative aspect-[10/17] w-28 shrink-0 overflow-hidden rounded-xl shadow-card transition-transform hover:-translate-y-1 motion-reduce:transform-none sm:w-32"
+              >
+                <CardBack className="h-full w-full" />
+              </Link>
+              <div className="min-w-0">
+                <p className="text-ivory">
+                  ไพ่ของวันนี้ยังคว่ำอยู่ — เปิดได้ฟรีทุกวัน วันละหนึ่งใบ พร้อมสารประจำวันจาก ARCANA
+                </p>
+                <Link href="/daily" className="btn-gold mt-4 px-5 py-2.5 text-sm">
+                  <Sparkles className="h-4 w-4" /> เปิดไพ่ประจำวัน
+                </Link>
+              </div>
             </div>
-          </div>
-          <p className="mt-5 rounded-xl border border-gold/20 bg-gold/5 px-4 py-3 text-sm text-ivory">
-            <span className="text-gold">ข้อคิดวันนี้ — </span>
-            {card.adviceTh}
-          </p>
-          <p className="mt-3 text-xs text-ivory-dim/60">
-            ไพ่ประจำวันแสดงความหมายตามฐานความรู้ไพ่ (ไม่ใช้ AI) และคงเดิมตลอดทั้งวัน
-          </p>
+          )}
+          {(daily?.streak ?? 0) > 0 && (
+            <p className="mt-5 flex items-center gap-2 text-sm text-ivory-dim">
+              <Flame className="h-4 w-4 text-gold" aria-hidden="true" />
+              เปิดไพ่ต่อเนื่อง {daily?.streak} วัน
+            </p>
+          )}
         </section>
 
         {/* recent readings */}
@@ -163,6 +186,15 @@ export default async function HomePage() {
           )}
         </section>
       </div>
+
+      <nav aria-label="ลิงก์เพิ่มเติม" className="flex flex-wrap gap-3 text-sm">
+        <Link href="/cards" className="btn-quiet border border-white/15">
+          คลังไพ่ 78 ใบ
+        </Link>
+        <Link href="/pricing" className="btn-quiet border border-white/15">
+          แพ็กเกจและเครดิต
+        </Link>
+      </nav>
     </div>
   );
 }

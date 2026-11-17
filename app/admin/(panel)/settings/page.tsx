@@ -3,7 +3,7 @@ import { SettingsForm } from "@/components/admin/SettingsForm";
 import { requireAdminPage } from "@/lib/admin";
 import { aiStatus } from "@/lib/ai/provider";
 import { PROMPT_VERSION } from "@/lib/ai/schemas";
-import { getSettings } from "@/lib/settings";
+import { DEFAULT_SETTINGS, getSettings } from "@/lib/settings";
 import { getKnowledge } from "@/lib/tarot/knowledge";
 
 export const metadata: Metadata = { title: "ตั้งค่าระบบ" };
@@ -30,6 +30,12 @@ export default async function AdminSettingsPage() {
       </p>
       <SettingsForm
         initial={settings}
+        recommended={{
+          credits: DEFAULT_SETTINGS.credits,
+          packages: DEFAULT_SETTINGS.packages,
+          plans: DEFAULT_SETTINGS.plans,
+          daily: DEFAULT_SETTINGS.daily,
+        }}
         role={admin.role}
         owners={roleData.owners}
         admins={roleData.admins}

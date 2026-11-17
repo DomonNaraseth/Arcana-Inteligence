@@ -52,7 +52,25 @@ const WEBHOOK_EVENTS = [
   "checkout.session.async_payment_succeeded",
   "checkout.session.async_payment_failed",
   "checkout.session.expired",
+  "customer.subscription.updated",
+  "customer.subscription.deleted",
+  "invoice.paid",
+  "charge.refunded",
+  "charge.dispute.created",
 ];
+
+interface SubscriptionAdminRow {
+  ref: string;
+  email: string | null;
+  tier: string;
+  status: string;
+  source: "admin" | "stripe";
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  active: boolean;
+}
+
+const TIER_NAME: Record<string, string> = { basic: "Plus", premium: "Premium", unlimited: "Unlimited" };
 
 function Step({ done, children }: { done: boolean; children: React.ReactNode }) {
   return (
@@ -78,13 +96,16 @@ function Step({ done, children }: { done: boolean; children: React.ReactNode }) 
 export default async function AdminPaymentsPage() {
   const admin = await requireAdminPage();
   const status = billingStatus();
-  const [payments, revenue, settings, h] = await Promise.all([
+  const [payments, subscriptions, revenue, settings, h] = await Promise.all([
     admin.supabase.rpc("arcana_admin_payments", { p_limit: 100 }),
+    admin.supabase.rpc("arcana_admin_subscriptions", { p_limit: 100 }),
     admin.supabase.rpc("arcana_admin_revenue", { p_days: 30 }),
     getSettings(admin.supabase, { fresh: true }),
     headers(),
   ]);
   const rows = (payments.data ?? []) as PaymentAdminRow[];
+  const members = (subscriptions.data ?? []) as SubscriptionAdminRow[];
+  const activeMembers = members.filter((m) => m.active);
   const rev = revenue.data as Revenue | null;
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
   const webhookUrl = `https://${host}/api/billing/webhook`;
@@ -118,7 +139,7 @@ export default async function AdminPaymentsPage() {
         <ol className="mt-5 space-y-3 text-sm">
           <Step done={status.configured}>
             ตั้งค่า <code className="font-mono text-gold-light">STRIPE_SECRET_KEY</code> ใน Environment Variables ของ
-            Vercel แบบ Sensitive — แนะนำให้ใช้ Restricted key ที่ให้สิทธิ์เฉพาะ Checkout Sessions (Write):{" "}
+            Vercel แบบ Sensitive — แนะนำให้ใช้ Restricted key ที่ให้สิทธิ์ Checkout Sessions, Products, Customer portal (Write) และ Subscriptions (Read):{" "}
             <code className="font-mono">rk_test_…</code> เพื่อทดสอบก่อน แล้วค่อยเปลี่ยนเป็น{" "}
             <code className="font-mono">rk_live_…</code> (ใช้ <code className="font-mono">sk_…</code> ได้เช่นกัน
             แต่สิทธิ์กว้างกว่าที่ระบบนี้ต้องใช้)
@@ -197,6 +218,58 @@ export default async function AdminPaymentsPage() {
           </div>
         </section>
       )}
+
+      <section className="panel p-6" aria-labelledby="members-title">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="members-title" className="text-xl font-semibold">
+            สมาชิกรายเดือน
+          </h2>
+          <span className="chip">ใช้งานอยู่ {activeMembers.length} ราย</span>
+        </div>
+        {members.length === 0 ? (
+          <p className="mt-3 text-sm text-ivory-dim">ยังไม่มีสมาชิกแบบชำระเงินหรือแพ็กเกจที่กำหนดด้วยมือ</p>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[36rem] text-left text-sm">
+              <thead className="text-xs text-ivory-dim">
+                <tr>
+                  <th className="px-3 py-2 font-normal">ผู้ใช้</th>
+                  <th className="px-3 py-2 font-normal">แพ็กเกจ</th>
+                  <th className="px-3 py-2 font-normal">ที่มา</th>
+                  <th className="px-3 py-2 font-normal">สถานะ</th>
+                  <th className="px-3 py-2 font-normal">ใช้ได้ถึง</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {members.map((m) => (
+                  <tr key={m.ref}>
+                    <td className="px-3 py-2.5 text-ivory">
+                      {m.email ?? <span className="font-mono text-xs text-ivory-dim">{m.ref}</span>}
+                    </td>
+                    <td className="px-3 py-2.5 text-ivory">{TIER_NAME[m.tier] ?? m.tier}</td>
+                    <td className="px-3 py-2.5 text-ivory-dim">{m.source === "stripe" ? "Stripe" : "กำหนดเอง"}</td>
+                    <td className="px-3 py-2.5">
+                      {m.active ? (
+                        <span className="text-gold-light">
+                          {m.cancel_at_period_end ? "ยกเลิกเมื่อครบรอบ" : "ใช้งานอยู่"}
+                        </span>
+                      ) : (
+                        <span className="text-ivory-dim">สิ้นสุดแล้ว</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums text-ivory-dim">
+                      {m.current_period_end ? formatThaiDate(m.current_period_end) : "ไม่กำหนด"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="mt-3 text-xs text-ivory-dim">
+          การคืนเงินค่าสมาชิกทำใน Stripe แล้วปรับเครดิตที่เมนูผู้ใช้ — ระบบดึงเครดิตคืนอัตโนมัติเฉพาะการคืนเงินเต็มจำนวนของแพ็กเติมเครดิต
+        </p>
+      </section>
 
       <section aria-labelledby="list-title">
         <h2 id="list-title" className="text-xl font-semibold">

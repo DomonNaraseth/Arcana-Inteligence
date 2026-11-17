@@ -30,6 +30,13 @@ export const settingsSchemas = {
     cost_interpret: z.object({ small: int(0, 100), medium: int(0, 100), large: int(0, 100) }),
     cost_followup: int(0, 100),
     cost_clarifier: int(0, 100),
+    /** follow-up questions per reading that cost nothing, by tier */
+    free_followups: z
+      .object({ free: int(0, 1000), basic: int(0, 1000), premium: int(0, 1000), unlimited: int(0, 1000) })
+      .default({ free: 2, basic: 5, premium: 10, unlimited: 50 }),
+    /** one-time credits for a new account / a new guest session (0 = none) */
+    signup_bonus: int(0, 1000).default(6),
+    guest_trial: int(0, 1000).default(0),
   }),
   disabled_spreads: z.array(z.string().max(64)).max(50),
   models: z.object({
@@ -55,6 +62,24 @@ export const settingsSchemas = {
       }),
     )
     .max(12),
+  /** monthly memberships; id is the tier the plan grants */
+  plans: z
+    .array(
+      z.object({
+        id: z.enum(["basic", "premium"]),
+        name: z.string().min(1).max(40),
+        price_thb: z.number().min(0).max(1000000),
+        monthly_credits: int(1, 100000),
+      }),
+    )
+    .max(2),
+  daily: z.object({
+    /** an AI-written message of the day (one shared call per card per day) */
+    ai_message: z.boolean(),
+    /** every N consecutive days a signed-in account earns the reward */
+    streak_days: int(0, 365),
+    streak_reward: int(0, 100),
+  }),
   billing: z.object({
     /** used only to express AI cost (USD) and revenue (THB) in one currency */
     usd_thb: z.number().min(1).max(1000),
@@ -73,10 +98,13 @@ export const DEFAULT_SETTINGS: Settings = {
   limits: { daily_readings: 15, daily_followups: 60, daily_analyses: 60 },
   credits: {
     enabled: false,
-    daily_free: { free: 3, basic: 10, premium: 30, unlimited: 150 },
-    cost_interpret: { small: 1, medium: 2, large: 3 },
-    cost_followup: 0,
+    daily_free: { free: 0, basic: 0, premium: 0, unlimited: 150 },
+    cost_interpret: { small: 2, medium: 3, large: 4 },
+    cost_followup: 1,
     cost_clarifier: 1,
+    free_followups: { free: 2, basic: 5, premium: 10, unlimited: 50 },
+    signup_bonus: 6,
+    guest_trial: 0,
   },
   disabled_spreads: [],
   models: {
@@ -102,10 +130,15 @@ export const DEFAULT_SETTINGS: Settings = {
     "gemini-2-5-flash": { input: 0.3, output: 2.5 },
   },
   packages: [
-    { id: "starter", name: "Starter", credits: 20, price_thb: 59 },
-    { id: "seeker", name: "Seeker", credits: 60, price_thb: 149 },
-    { id: "oracle", name: "Oracle", credits: 150, price_thb: 299 },
+    { id: "starter", name: "Starter", credits: 30, price_thb: 99 },
+    { id: "seeker", name: "Seeker", credits: 70, price_thb: 199 },
+    { id: "oracle", name: "Oracle", credits: 150, price_thb: 399 },
   ],
+  plans: [
+    { id: "basic", name: "Plus", price_thb: 149, monthly_credits: 60 },
+    { id: "premium", name: "Premium", price_thb: 299, monthly_credits: 150 },
+  ],
+  daily: { ai_message: true, streak_days: 7, streak_reward: 3 },
   billing: { usd_thb: 36, require_account: false },
 };
 
@@ -149,8 +182,25 @@ export function interpretCost(settings: Settings, cardCount: number): number {
   return cardCount <= 3 ? c.small : cardCount <= 7 ? c.medium : c.large;
 }
 
-export function followUpCost(settings: Settings, drawCard: boolean): number {
-  return settings.credits.cost_followup + (drawCard ? settings.credits.cost_clarifier : 0);
+export type Tier = "free" | "basic" | "premium" | "unlimited";
+
+/**
+ * @param askedSoFar follow-up questions already answered in this reading
+ * @param tier the asker's tier — decides how many follow-ups are free
+ */
+export function followUpCost(
+  settings: Settings,
+  drawCard: boolean,
+  askedSoFar = 0,
+  tier: Tier = "free",
+): number {
+  const c = settings.credits;
+  const free = askedSoFar < c.free_followups[tier];
+  return (free ? 0 : c.cost_followup) + (drawCard ? c.cost_clarifier : 0);
+}
+
+export function planFor(settings: Settings, id: string) {
+  return settings.plans.find((p) => p.id === id) ?? null;
 }
 
 function fnv1a(text: string): string {

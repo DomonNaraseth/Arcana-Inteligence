@@ -16,7 +16,11 @@ AI Tarot & Life Guidance platform. Thai-first UI. Read `docs/ARCHITECTURE.md` be
 
 9. **Read card and spread text from the effective knowledge base.** Anything shown to a user or sent to the AI uses `getKnowledge()` / `currentKnowledge()` (shipped defaults + admin overrides) and stores `kb.version`. Only structural code (`draw.ts`, `analysis.ts`) may read the static deck. Overrides may change text only — never ids, arcana, suit, element, card counts or position keys.
 
-10. **Payments: the browser decides nothing.** Price and credit amount come from server settings; success is established only by the provider (signed webhook or a server-side session lookup) and credits are granted only through `arcana_fulfill_payment()`, which re-checks session id, amount and currency and is idempotent. Never grant purchase credits any other way, and never fake a provider when keys are missing.
+10. **Payments: the browser decides nothing.** Price and credit amount come from server settings; success is established only by the provider (signed webhook or a server-side session lookup) and credits are granted only through `arcana_fulfill_payment()` (re-checks session id, amount and currency) and, for membership renewals, `arcana_renew_subscription()` (once per invoice id); both are idempotent. A membership tier changes only through `arcana_activate_subscription()` / `arcana_sync_subscription()` from provider-verified events, or `arcana_admin_set_tier()`. Never grant purchase credits or a paid tier any other way, and never fake a provider when keys are missing.
+
+11. **The daily card is drawn once and never redrawn.** `drawDailyCard()` picks it, `arcana_daily_draw()` stores it insert-only per user per Bangkok day. Its message of the day is shared per card per day, must pass `verifyDailyMessage` before it is stored, and falls back to the knowledge-base meaning — never to invented text.
+
+12. **Free does not mean free AI.** Recurring free allowances must not include deep-model readings by default; the free habit is the daily card. Check the cost per reading (Admin → overview) before raising any free allowance.
 
 ## Architecture conventions
 

@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface WalletTransaction {
   amount: number;
-  kind: "daily_grant" | "admin_grant" | "purchase" | "spend" | "refund";
+  kind: "daily_grant" | "admin_grant" | "purchase" | "spend" | "refund" | "bonus" | "subscription";
   feature: string | null;
   note: string | null;
   created_at: string;
@@ -20,7 +20,7 @@ export interface Wallet {
 
 export const TIER_TH: Record<Wallet["tier"], string> = {
   free: "Free",
-  basic: "Basic",
+  basic: "Plus",
   premium: "Premium",
   unlimited: "Unlimited",
 };

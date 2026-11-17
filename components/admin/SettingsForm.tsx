@@ -6,6 +6,8 @@ import type { SettingKey, Settings } from "@/lib/settings";
 
 interface Props {
   initial: Settings;
+  /** the shipped pricing model, offered as a one-click starting point */
+  recommended: Pick<Settings, "credits" | "packages" | "plans" | "daily">;
   role: "owner" | "admin";
   owners: string[];
   admins: string[];
@@ -125,7 +127,7 @@ function Num({
   );
 }
 
-export function SettingsForm({ initial, role, owners, admins, spreads, ai }: Props) {
+export function SettingsForm({ initial, recommended, role, owners, admins, spreads, ai }: Props) {
   // ── reading rules ──
   const [reversal, setReversal] = useState(Math.round(initial.reversal_probability * 100));
   const [limits, setLimits] = useState(initial.limits);
@@ -149,6 +151,19 @@ export function SettingsForm({ initial, role, owners, admins, spreads, ai }: Pro
   // ── billing ──
   const [billing, setBilling] = useState(initial.billing);
   const billingSaver = useSaver();
+
+  // ── memberships & daily card ──
+  const [plans, setPlans] = useState(initial.plans);
+  const [daily, setDaily] = useState(initial.daily);
+  const planSaver = useSaver();
+
+  function applyRecommended() {
+    // fills the form only — nothing is stored until each section is saved
+    setCredits({ ...recommended.credits, enabled: credits.enabled });
+    setPackages(recommended.packages);
+    setPlans(recommended.plans);
+    setDaily(recommended.daily);
+  }
 
   // ── prices ──
   const [prices, setPrices] = useState(
@@ -234,6 +249,20 @@ export function SettingsForm({ initial, role, owners, admins, spreads, ai }: Pro
           <span className="text-ivory">เปิดใช้ระบบเครดิต</span>
         </label>
 
+        <div className="mt-4 rounded-xl border border-gold/25 bg-gold/5 px-4 py-3">
+          <p className="text-sm text-ivory">
+            ค่าที่แนะนำ: สมัครฟรีรับ {recommended.credits.signup_bonus} เครดิต · อ่านไพ่{" "}
+            {recommended.credits.cost_interpret.small}/{recommended.credits.cost_interpret.medium}/
+            {recommended.credits.cost_interpret.large} เครดิต · ไม่มีเครดิตฟรีรายวัน (ใช้ไพ่ประจำวันและรางวัลเปิดไพ่ต่อเนื่องแทน)
+          </p>
+          <button type="button" onClick={applyRecommended} className="btn-quiet mt-2 border border-gold/40">
+            เติมค่าที่แนะนำลงในฟอร์ม
+          </button>
+          <p className="mt-2 text-xs text-ivory-dim">
+            ยังไม่บันทึกจนกว่าจะกด “บันทึก” ของหัวข้อนี้ และของหัวข้อ “สมาชิกรายเดือนและไพ่ประจำวัน”
+          </p>
+        </div>
+
         <h3 className="mt-6 text-sm font-medium text-gold">เครดิตฟรีรายวันตามแพ็กเกจ</h3>
         <p className="mt-1 text-xs text-ivory-dim">
           ทุกวันระบบเติมยอดให้ถึงจำนวนนี้ (เครดิตส่วนเกินที่ซื้อหรือได้รับแจกจะไม่หาย)
@@ -258,9 +287,33 @@ export function SettingsForm({ initial, role, owners, admins, spreads, ai }: Pro
           <Num label="ไพ่เสริม 1 ใบ" value={credits.cost_clarifier} onChange={(n) => setCredits({ ...credits, cost_clarifier: n })} />
         </div>
 
+        <h3 className="mt-6 text-sm font-medium text-gold">เครดิตต้อนรับ (ให้ครั้งเดียว)</h3>
+        <p className="mt-1 text-xs text-ivory-dim">
+          โบนัสสมัครให้เมื่อเข้าสู่ระบบครั้งแรก · เครดิตทดลองของผู้เยี่ยมชมผูกกับเบราว์เซอร์
+          (ตั้งเป็น 0 เพื่อให้ต้องสมัครก่อนอ่านไพ่ — ป้องกันการเปิดหน้าต่างใหม่เพื่อรับซ้ำ)
+        </p>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Num label="โบนัสสมัครสมาชิก" value={credits.signup_bonus} onChange={(n) => setCredits({ ...credits, signup_bonus: n })} suffix="เครดิต" />
+          <Num label="ทดลองใช้ (ผู้เยี่ยมชม)" value={credits.guest_trial} onChange={(n) => setCredits({ ...credits, guest_trial: n })} suffix="เครดิต" />
+        </div>
+
+        <h3 className="mt-6 text-sm font-medium text-gold">ถามต่อฟรีต่อการอ่านหนึ่งครั้ง</h3>
+        <p className="mt-1 text-xs text-ivory-dim">เกินจำนวนนี้จึงคิดราคา “ถามต่อ 1 ครั้ง” ด้านบน</p>
+        <div className="mt-3 grid gap-4 sm:grid-cols-4">
+          {(["free", "basic", "premium", "unlimited"] as const).map((t) => (
+            <Num
+              key={t}
+              label={t === "basic" ? "Plus" : t.charAt(0).toUpperCase() + t.slice(1)}
+              value={credits.free_followups[t]}
+              onChange={(n) => setCredits({ ...credits, free_followups: { ...credits.free_followups, [t]: n } })}
+              suffix="ครั้ง"
+            />
+          ))}
+        </div>
+
         <h3 className="mt-6 text-sm font-medium text-gold">แพ็กเกจเติมเครดิต</h3>
         <p className="mt-1 text-xs text-ivory-dim">
-          แสดงให้ผู้ใช้เห็นเป็นข้อมูลเท่านั้น — ยังไม่ได้เชื่อมระบบชำระเงิน จึงยังซื้อจริงไม่ได้
+          ราคาและจำนวนเครดิตที่ขายจริงผ่านระบบชำระเงิน (ขั้นต่ำ 10 บาทต่อแพ็กเกจ)
         </p>
         <div className="mt-3 space-y-2">
           {packages.map((p, i) => (
@@ -319,6 +372,64 @@ export function SettingsForm({ initial, role, owners, admins, spreads, ai }: Pro
             </button>
           )}
         </div>
+      </Section>
+
+      <Section
+        title="สมาชิกรายเดือนและไพ่ประจำวัน"
+        description="สมาชิกรายเดือนเก็บเงินอัตโนมัติผ่าน Stripe และเติมเครดิตให้ทุกรอบบิล การเปลี่ยนราคามีผลกับผู้สมัครใหม่เท่านั้น"
+        state={planSaver.state}
+        onSave={() =>
+          planSaver.run(async () => {
+            await postJson("/api/admin/settings", { key: "plans", value: plans });
+            await postJson("/api/admin/settings", { key: "daily", value: daily });
+          })
+        }
+      >
+        <div className="space-y-3">
+          {plans.map((plan, i) => (
+            <div key={plan.id} className="grid gap-3 sm:grid-cols-[1fr_9rem_9rem]">
+              <label className="block">
+                <span className="text-sm text-ivory-dim">
+                  ชื่อแพ็กเกจ ({plan.id === "basic" ? "ระดับ Plus" : "ระดับ Premium"})
+                </span>
+                <input
+                  value={plan.name}
+                  onChange={(e) => setPlans(plans.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+                  className="field mt-1 py-2 text-sm"
+                />
+              </label>
+              <Num
+                label="ราคาต่อเดือน"
+                value={plan.price_thb}
+                onChange={(n) => setPlans(plans.map((x, j) => (j === i ? { ...x, price_thb: n } : x)))}
+                suffix="บาท"
+              />
+              <Num
+                label="เครดิตต่อเดือน"
+                value={plan.monthly_credits}
+                onChange={(n) => setPlans(plans.map((x, j) => (j === i ? { ...x, monthly_credits: n } : x)))}
+                min={1}
+                suffix="เครดิต"
+              />
+            </div>
+          ))}
+        </div>
+
+        <h3 className="mt-6 text-sm font-medium text-gold">ไพ่ประจำวัน</h3>
+        <label className="mt-3 flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={daily.ai_message}
+            onChange={(e) => setDaily({ ...daily, ai_message: e.target.checked })}
+            className="h-5 w-5 accent-[#C6A15B]"
+          />
+          <span className="text-ivory">ให้ AI เขียนสารประจำวัน (เรียก AI ไม่เกิน 1 ครั้งต่อไพ่ต่อวัน ใช้ร่วมกันทุกคน)</span>
+        </label>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Num label="รอบเปิดไพ่ต่อเนื่อง" value={daily.streak_days} onChange={(n) => setDaily({ ...daily, streak_days: n })} suffix="วัน" />
+          <Num label="รางวัลเมื่อครบรอบ" value={daily.streak_reward} onChange={(n) => setDaily({ ...daily, streak_reward: n })} suffix="เครดิต" />
+        </div>
+        <p className="mt-2 text-xs text-ivory-dim">ตั้งรอบหรือรางวัลเป็น 0 เพื่อปิดรางวัล (ให้เฉพาะบัญชีที่เข้าสู่ระบบ)</p>
       </Section>
 
       <Section

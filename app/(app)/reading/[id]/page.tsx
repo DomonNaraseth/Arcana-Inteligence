@@ -40,6 +40,8 @@ export default async function ReadingPage({
         ),
         followupCost: settings.credits.cost_followup,
         clarifierCost: settings.credits.cost_clarifier,
+        freeFollowups: settings.credits.free_followups[wallet.tier],
+        signupBonus: isGuest ? settings.credits.signup_bonus : 0,
       }
     : null;
 

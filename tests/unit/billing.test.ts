@@ -6,7 +6,9 @@ import {
   createStripeProvider,
   encodeForm,
   mapStripeEvent,
+  toInvoiceState,
   toSessionState,
+  toSubscriptionState,
   verifyStripeSignature,
 } from "@/lib/billing/stripe";
 
@@ -109,6 +111,9 @@ describe("event mapping", () => {
       amountMinor: 5900,
       currency: "thb",
       paymentRef: "pi_test_1",
+      mode: "payment",
+      subscriptionId: null,
+      customerId: null,
     });
   });
 
@@ -204,5 +209,112 @@ describe("stripe provider", () => {
     const event = p.parseWebhook(body, header);
     expect(event.kind).toBe("paid");
     expect(event.session?.amountMinor).toBe(5900);
+  });
+});
+
+describe("stripe memberships", () => {
+  it("reads a subscription checkout: paid through an invoice, with subscription and customer", () => {
+    const s = toSessionState({
+      id: "cs_test_sub",
+      mode: "subscription",
+      status: "complete",
+      payment_status: "paid",
+      amount_total: 14900,
+      currency: "thb",
+      client_reference_id: "11111111-2222-3333-4444-555555555555",
+      payment_intent: null,
+      invoice: "in_1",
+      subscription: { id: "sub_1" },
+      customer: "cus_1",
+    });
+    expect(s).toMatchObject({
+      mode: "subscription",
+      paid: true,
+      paymentRef: "in_1",
+      subscriptionId: "sub_1",
+      customerId: "cus_1",
+    });
+    expect(toSessionState(session()).mode).toBe("payment");
+  });
+
+  it("finds the period end in both API shapes", () => {
+    expect(toSubscriptionState({ id: "sub_1", status: "active", current_period_end: 1800 }).currentPeriodEnd).toBe(1800);
+    expect(
+      toSubscriptionState({ id: "sub_1", status: "active", items: { data: [{ current_period_end: 1900 }] } })
+        .currentPeriodEnd,
+    ).toBe(1900);
+  });
+
+  it("keeps access during payment retries and ends it when the provider gives up", () => {
+    expect(toSubscriptionState({ id: "sub_1", status: "past_due" }).status).toBe("active");
+    expect(toSubscriptionState({ id: "sub_1", status: "trialing" }).status).toBe("active");
+    expect(toSubscriptionState({ id: "sub_1", status: "unpaid" }).status).toBe("canceled");
+    expect(toSubscriptionState({ id: "sub_1", status: "incomplete" }).status).toBe("other");
+  });
+
+  it("treats a scheduled cancellation as cancel-at-period-end", () => {
+    expect(toSubscriptionState({ id: "sub_1", status: "active", cancel_at_period_end: true }).cancelAtPeriodEnd).toBe(true);
+    expect(toSubscriptionState({ id: "sub_1", status: "active", cancel_at: 1900 }).cancelAtPeriodEnd).toBe(true);
+    expect(toSubscriptionState({ id: "sub_1", status: "active" }).cancelAtPeriodEnd).toBe(false);
+  });
+
+  it("finds the subscription of an invoice in both API shapes", () => {
+    expect(toInvoiceState({ id: "in_1", subscription: "sub_1" }).subscriptionId).toBe("sub_1");
+    expect(
+      toInvoiceState({ id: "in_1", parent: { subscription_details: { subscription: "sub_2" } } }).subscriptionId,
+    ).toBe("sub_2");
+    expect(toInvoiceState({ id: "in_1" }).subscriptionId).toBeNull();
+  });
+
+  it("maps subscription lifecycle events", () => {
+    const sub = { id: "sub_1", status: "active", customer: "cus_1", current_period_end: 1800 };
+    const updated = mapStripeEvent({ id: "e1", type: "customer.subscription.updated", data: { object: sub } });
+    expect(updated.kind).toBe("subscription_changed");
+    expect(updated.subscription?.id).toBe("sub_1");
+    const deleted = mapStripeEvent({ id: "e2", type: "customer.subscription.deleted", data: { object: sub } });
+    expect(deleted.kind).toBe("subscription_ended");
+    expect(deleted.subscription?.status).toBe("canceled");
+    const incomplete = mapStripeEvent({
+      id: "e3",
+      type: "customer.subscription.updated",
+      data: { object: { ...sub, status: "incomplete" } },
+    });
+    expect(incomplete.kind).toBe("ignored");
+  });
+
+  it("maps a paid subscription invoice and ignores one-off invoices", () => {
+    const paid = mapStripeEvent({
+      id: "e4",
+      type: "invoice.paid",
+      livemode: true,
+      data: {
+        object: { id: "in_9", subscription: "sub_1", amount_paid: 14900, currency: "thb", billing_reason: "subscription_cycle" },
+      },
+    });
+    expect(paid).toMatchObject({ kind: "invoice_paid", livemode: true });
+    expect(paid.invoice).toMatchObject({
+      id: "in_9",
+      subscriptionId: "sub_1",
+      amountPaid: 14900,
+      billingReason: "subscription_cycle",
+    });
+    expect(mapStripeEvent({ id: "e5", type: "invoice.paid", data: { object: { id: "in_10" } } }).kind).toBe("ignored");
+  });
+
+  it("takes credits back only for a full refund or a dispute", () => {
+    const charge = { id: "ch_1", payment_intent: "pi_1", amount: 9900 };
+    expect(
+      mapStripeEvent({ id: "e6", type: "charge.refunded", data: { object: { ...charge, refunded: true } } }),
+    ).toMatchObject({ kind: "refunded", paymentRef: "pi_1" });
+    expect(
+      mapStripeEvent({
+        id: "e7",
+        type: "charge.refunded",
+        data: { object: { ...charge, refunded: false, amount_refunded: 100 } },
+      }).kind,
+    ).toBe("ignored");
+    expect(
+      mapStripeEvent({ id: "e8", type: "charge.dispute.created", data: { object: { id: "dp_1", payment_intent: "pi_1" } } }),
+    ).toMatchObject({ kind: "disputed", paymentRef: "pi_1" });
   });
 });

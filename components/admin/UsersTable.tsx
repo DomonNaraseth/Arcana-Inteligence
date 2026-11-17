@@ -18,7 +18,7 @@ export interface AdminUser {
 const TIERS: AdminUser["tier"][] = ["free", "basic", "premium", "unlimited"];
 const TIER_LABEL: Record<AdminUser["tier"], string> = {
   free: "Free",
-  basic: "Basic",
+  basic: "Plus",
   premium: "Premium",
   unlimited: "Unlimited",
 };
