@@ -216,6 +216,33 @@ async function callGatewayModel(
   };
 }
 
+/** Operator health check: which gateway models can this deployment reach? */
+export async function probeModels(
+  models: string[],
+): Promise<{ model: string; ok: boolean; status?: number; detail: string }[]> {
+  const token = await gatewayToken();
+  if (!token) return models.map((model) => ({ model, ok: false, detail: "no gateway token" }));
+  return Promise.all(
+    models.map(async (model) => {
+      try {
+        const r = await callGatewayModel(
+          {
+            system: "Reply in Thai.",
+            messages: [{ role: "user", content: "ตอบคำว่า พร้อม คำเดียว" }],
+            maxTokens: 400,
+          },
+          model,
+          token,
+        );
+        return { model, ok: true, detail: r.text.slice(0, 60) };
+      } catch (err) {
+        const e = err as AiProviderError;
+        return { model, ok: false, status: e.status, detail: String(e.message).slice(0, 160) };
+      }
+    }),
+  );
+}
+
 /** Extract the first complete JSON object from a model response. */
 export function extractJson(text: string): unknown {
   const start = text.indexOf("{");
