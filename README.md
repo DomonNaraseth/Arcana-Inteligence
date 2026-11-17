@@ -25,6 +25,7 @@
 | AI usage log (token ต่อ feature ต่อ reading) + fair-use quota รายวัน | ✅ |
 | Admin dashboard `/admin` — RBAC (Owner / Admin), ภาพรวม + ต้นทุน AI, ผู้ใช้และเครดิต, ตั้งค่าระบบ, audit log + error log | ✅ |
 | ระบบเครดิต (หักหลังสำเร็จ, ไม่หักซ้ำ, เครดิตฟรีรายวันตามแพ็กเกจ) + แพ็กเกจสมาชิกแบบกำหนดมือ | ✅ (ปิดไว้เป็นค่าเริ่มต้น เปิดได้ใน Admin) |
+| แก้ความหมายไพ่ 78 ใบ และข้อความของ spread ผ่าน Admin → คลังความรู้ไพ่ (คืนค่าเริ่มต้นได้, มี audit log, ประทับเวอร์ชันกับคำอ่าน) | ✅ |
 | Payment gateway, Custom spread, แชร์ผล, เสียงอ่าน, Astrology/BaZi | ⏳ เฟสถัดไป (ดู docs/ARCHITECTURE.md) |
 
 ## Tech stack
@@ -72,7 +73,7 @@ npm run dev
 
 ## ฐานข้อมูล
 
-รัน `supabase/migrations/0001_arcana_init.sql` และ `0002_arcana_admin_credits.sql` ตามลำดับ แล้วบันทึก hash ของ server secret (และ `admin_key_sha256`, `owner_emails` สำหรับ Admin):
+รัน `supabase/migrations/0001_arcana_init.sql`, `0002_arcana_admin_credits.sql` และ `0003_arcana_kb_overrides.sql` ตามลำดับ แล้วบันทึก hash ของ server secret (และ `admin_key_sha256`, `owner_emails` สำหรับ Admin):
 
 ```sql
 insert into public.arcana_server_config (key, value)

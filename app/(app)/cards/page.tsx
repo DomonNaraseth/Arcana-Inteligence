@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { CardLibrary } from "@/components/tarot/CardLibrary";
-import { DECK } from "@/lib/tarot/deck";
+import { currentKnowledge } from "@/lib/tarot/current";
 
 export const metadata: Metadata = { title: "คลังไพ่ 78 ใบ" };
 
-export default function CardsPage() {
-  const cards = DECK.map((c) => ({
+export default async function CardsPage() {
+  const kb = await currentKnowledge();
+  const cards = kb.cards.map((c) => ({
     id: c.id,
     name: c.name,
     nameTh: c.nameTh,

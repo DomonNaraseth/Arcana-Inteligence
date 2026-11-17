@@ -1,7 +1,9 @@
-import { SPREADS } from "../tarot/spreads";
-import { requireCard, ELEMENT_TH, KNOWLEDGE_BASE_VERSION } from "../tarot/deck";
+import { ELEMENT_TH } from "../tarot/deck";
 import { computeSpreadStats } from "../tarot/analysis";
-import type { DrawnCard, Spread } from "../tarot/types";
+import type { DrawnCard, Spread, TarotCard } from "../tarot/types";
+
+/** Looks a card up in the effective knowledge base (defaults + admin overrides). */
+export type CardLookup = (id: string) => TarotCard;
 import type { QuestionAnalysis } from "./schemas";
 import { CATEGORIES, INTENTS } from "./schemas";
 
@@ -54,8 +56,8 @@ ${text}`;
 }
 
 // ── Question Intelligence ──────────────────────────────────────────────────
-export function questionAnalysisSystem(): string {
-  const spreadList = SPREADS.map(
+export function questionAnalysisSystem(spreads: readonly Spread[]): string {
+  const spreadList = spreads.map(
     (s) => `- "${s.id}": ${s.nameTh} (${s.cardCount} ใบ) — ${s.descriptionTh}`,
   ).join("\n");
 
@@ -90,9 +92,9 @@ ${spreadList}
 }
 
 // ── L2 ─────────────────────────────────────────────────────────────────────
-function cardKnowledge(drawn: DrawnCard[], spread: Spread | null) {
+function cardKnowledge(drawn: DrawnCard[], spread: Spread | null, cardOf: CardLookup) {
   return drawn.map((d) => {
-    const c = requireCard(d.cardId);
+    const c = cardOf(d.cardId);
     const pos = spread?.positions.find((p) => p.key === d.positionKey);
     return {
       position: d.position,
@@ -213,6 +215,8 @@ export function interpretationPrompt(args: {
   spread: Spread;
   drawn: DrawnCard[];
   todayIso: string;
+  cardOf: CardLookup;
+  kbVersion: string;
   addendum?: string;
 }): { system: string; user: string } {
   const stats = computeSpreadStats(args.drawn);
@@ -228,10 +232,10 @@ export function interpretationPrompt(args: {
 
   const payload = {
     today: args.todayIso,
-    knowledge_base_version: KNOWLEDGE_BASE_VERSION,
+    knowledge_base_version: args.kbVersion,
     question: questionContext(args.question, args.analysis),
     spread: spreadContext(args.spread),
-    drawn_cards: cardKnowledge(args.drawn, args.spread),
+    drawn_cards: cardKnowledge(args.drawn, args.spread, args.cardOf),
     spread_stats: stats.summaryTh,
   };
 
@@ -251,6 +255,7 @@ export function followUpSystem(args: {
   spread: Spread;
   drawn: DrawnCard[];
   interpretationSummary: string;
+  cardOf: CardLookup;
   addendum?: string;
 }): string {
   const original = args.drawn.filter((d) => !d.isFollowup);
@@ -258,8 +263,8 @@ export function followUpSystem(args: {
   const context = {
     question: questionContext(args.question, args.analysis),
     spread: spreadContext(args.spread),
-    original_cards: cardKnowledge(original, args.spread),
-    additional_cards_drawn_later: cardKnowledge(extra, null),
+    original_cards: cardKnowledge(original, args.spread, args.cardOf),
+    additional_cards_drawn_later: cardKnowledge(extra, null, args.cardOf),
     previous_reading_summary: args.interpretationSummary,
   };
 

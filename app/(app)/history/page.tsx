@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 import type { ReadingRow } from "@/lib/data/readings";
 import { formatThaiDate } from "@/lib/format";
 import { getContext } from "@/lib/supabase/server";
-import { getSpread } from "@/lib/tarot/spreads";
+import { getKnowledge } from "@/lib/tarot/knowledge";
 
 export const metadata: Metadata = { title: "ประวัติการอ่านไพ่" };
 
@@ -18,6 +18,7 @@ export default async function HistoryPage({
   const { q } = await searchParams;
   const term = (q ?? "").trim().slice(0, 80);
   const { supabase } = await getContext();
+  const kb = await getKnowledge(supabase);
 
   let query = supabase
     .from("arcana_readings")
@@ -78,7 +79,7 @@ export default async function HistoryPage({
               >
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ivory-dim">
                   <span>{formatThaiDate(r.created_at, true)}</span>
-                  <span className="text-gold">{getSpread(r.spread_id)?.nameTh ?? r.spread_id}</span>
+                  <span className="text-gold">{kb.spread(r.spread_id)?.nameTh ?? r.spread_id}</span>
                   {r.status === "interpreted" && r.tendency ? (
                     <span className="chip">{r.tendency}</span>
                   ) : (

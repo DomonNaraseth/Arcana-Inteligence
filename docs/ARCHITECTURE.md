@@ -90,7 +90,7 @@ arcana_server_config   (server secret hash; no API access)
 | `arcana_journals` | personal notes, optional link to a reading, mood | |
 | `arcana_ai_usage` | cost monitoring + daily quotas | |
 
-The tarot knowledge base and spread catalog are versioned TypeScript modules (`lib/tarot/data`, `lib/tarot/spreads.ts`) rather than tables in this version — they change with code review, and their version is stamped on every reading. Moving them into `tarot_cards` / `spreads` tables is part of the Admin phase.
+The tarot knowledge base and spread catalog ship as versioned TypeScript modules (`lib/tarot/data`, `lib/tarot/spreads.ts`); admins edit their text through audited overrides in `arcana_kb_overrides` (section 6c). The effective version is stamped on every reading.
 
 ## 5. Security
 
@@ -156,6 +156,24 @@ Migration: `supabase/migrations/0002_arcana_admin_credits.sql`.
 
 **Cost monitoring.** `arcana_ai_usage` records provider, model and tokens per call; Admin → Overview multiplies by the editable `model_prices` table. It is an estimate, not an invoice. No payment gateway is integrated, so revenue and margin are not shown.
 
+## 6c. Admin-editable knowledge base
+
+Migration: `supabase/migrations/0003_arcana_kb_overrides.sql`. UI: Admin → คลังความรู้ไพ่ (`/admin/knowledge`). API: `POST /api/admin/knowledge` `{ type: "card" | "spread", id, fields }` or `{ type, id, reset: true }`.
+
+The canonical knowledge base still ships in code (`lib/tarot/data`, `lib/tarot/spreads.ts`). `arcana_kb_overrides` stores, per card or spread, **only the text fields that differ** from the shipped default.
+
+| | Editable (text) | Fixed (structure) |
+| --- | --- | --- |
+| Card | Thai name, upright / reversed keywords, upright, reversed, love, career, finance, advice | id, English name, arcana, suit, number, element, image |
+| Spread | Thai name, description, interpretation strategy, each position's name and meaning | id, English name, card count, position keys and order, category |
+
+- `lib/tarot/overrides.ts` — strict Zod schemas (an override carrying a structural key is rejected whole), `applyCardOverride` / `applySpreadOverride` (invalid rows are ignored, the default wins), `diffCard` / `diffSpread` (saving a value equal to the default removes the override).
+- `lib/tarot/knowledge.ts` — `getKnowledge(supabase)` returns the **effective** knowledge base (30 s cache per instance). Card pages, the reading table, the spread picker, question analysis, the interpretation prompt and follow-up chat all read from it; nothing user-facing or AI-facing reads the static deck directly for text. Structure-only code (`draw.ts`, `analysis.ts`) keeps using the static deck.
+- **Versioning.** `Knowledge.version` is the shipped version when nothing is overridden, otherwise `rws-th-x.y.z+kb-<hash of all overrides>`. It is stored on every reading and analysis, so each saved interpretation records exactly which knowledge it was grounded in. Old interpretations are never rewritten when the knowledge changes.
+- **History.** Every save and reset writes `arcana_audit_logs` with the old and new fields; `revision` on the override row counts edits.
+
+Custom spreads (new ids / new card counts) and additional decks are not part of this — they change structure and belong to a later phase.
+
 ## 7. Folder structure
 
 ```
@@ -178,7 +196,8 @@ docs/
 | --- | --- | --- |
 | M0–M5 | Architecture, foundation, tarot core, AI intelligence, reading experience, follow-up, history, journal | ✅ shipped |
 | M6 | Admin dashboard (owner/admin RBAC), runtime settings, model + prompt-addendum management, usage and cost analytics, credit ledger, manual subscription tiers, audit + error logs | ✅ shipped |
-| M6+ | Tarot knowledge base and spread positions editable in the database; full prompt versions with rollback | next |
+| M6+ | Card meanings and spread texts editable in Admin as audited, resettable overrides with version stamping | ✅ shipped |
+| M6++ | Custom spreads / additional decks (structural changes); full prompt versions with rollback | next |
 | M7 | E2E tests (Playwright), 200-question evaluation set with human rubric (25/20/15/15/10/10/5), cost tuning per model tier | next |
 | Later | Payment gateway, custom spreads, share cards, voice, astrology / numerology / BaZi as separate disciplines | planned |
 

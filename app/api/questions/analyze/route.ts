@@ -7,7 +7,8 @@ import { fail, handleError } from "@/lib/api";
 import { logUsage, withinQuota } from "@/lib/data/readings";
 import { getSettings, type Settings } from "@/lib/settings";
 import { getContext } from "@/lib/supabase/server";
-import { fallbackSpreadId } from "@/lib/tarot/spreads";
+import { getKnowledge } from "@/lib/tarot/knowledge";
+import { enabledSpreads, fallbackSpreadId } from "@/lib/tarot/spreads";
 
 export const maxDuration = 60;
 
@@ -40,7 +41,11 @@ export async function POST(req: Request) {
         analysis: respectDisabled(heuristicAnalysis(question), settings),
       });
     }
-    const { analysis, usage } = await analyzeQuestion(question);
+    const kb = await getKnowledge(supabase);
+    const { analysis, usage } = await analyzeQuestion(
+      question,
+      enabledSpreads(settings.disabled_spreads, kb.spreads),
+    );
     await logUsage(supabase, userKey, "analyze", usage);
     return NextResponse.json({ analysis: respectDisabled(analysis, settings) });
   } catch (err) {

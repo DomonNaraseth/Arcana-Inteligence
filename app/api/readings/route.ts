@@ -4,8 +4,8 @@ import { questionAnalysisSchema } from "@/lib/ai/schemas";
 import { fail, handleError } from "@/lib/api";
 import { getSettings } from "@/lib/settings";
 import { getContext } from "@/lib/supabase/server";
-import { KNOWLEDGE_BASE_VERSION } from "@/lib/tarot/deck";
 import { drawForSpread } from "@/lib/tarot/draw";
+import { getKnowledge } from "@/lib/tarot/knowledge";
 import { getSpread } from "@/lib/tarot/spreads";
 
 const bodySchema = z.object({
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
         spread_id: spread.id,
         status: "drawn",
         draw_meta: draw.meta,
-        kb_version: KNOWLEDGE_BASE_VERSION,
+        kb_version: (await getKnowledge(supabase)).version,
         idempotency_key: idempotencyKey,
       })
       .select("id")

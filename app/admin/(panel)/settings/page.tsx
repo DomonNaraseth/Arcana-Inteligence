@@ -4,17 +4,17 @@ import { requireAdminPage } from "@/lib/admin";
 import { aiStatus } from "@/lib/ai/provider";
 import { PROMPT_VERSION } from "@/lib/ai/schemas";
 import { getSettings } from "@/lib/settings";
-import { KNOWLEDGE_BASE_VERSION } from "@/lib/tarot/deck";
-import { SPREADS } from "@/lib/tarot/spreads";
+import { getKnowledge } from "@/lib/tarot/knowledge";
 
 export const metadata: Metadata = { title: "ตั้งค่าระบบ" };
 
 export default async function AdminSettingsPage() {
   const admin = await requireAdminPage();
-  const [settings, roles, ai] = await Promise.all([
+  const [settings, roles, ai, kb] = await Promise.all([
     getSettings(admin.supabase, { fresh: true }),
     admin.supabase.rpc("arcana_admin_get_admin_emails"),
     aiStatus(),
+    getKnowledge(admin.supabase, { fresh: true }),
   ]);
   const roleData = (roles.data ?? { owners: [], admins: [] }) as {
     owners: string[];
@@ -33,12 +33,12 @@ export default async function AdminSettingsPage() {
         role={admin.role}
         owners={roleData.owners}
         admins={roleData.admins}
-        spreads={SPREADS.map((s) => ({ id: s.id, nameTh: s.nameTh, nameEn: s.nameEn, cardCount: s.cardCount }))}
+        spreads={kb.spreads.map((s) => ({ id: s.id, nameTh: s.nameTh, nameEn: s.nameEn, cardCount: s.cardCount }))}
         ai={{
           configured: ai.configured,
           provider: ai.provider,
           promptVersion: PROMPT_VERSION,
-          kbVersion: KNOWLEDGE_BASE_VERSION,
+          kbVersion: kb.version,
         }}
       />
     </div>

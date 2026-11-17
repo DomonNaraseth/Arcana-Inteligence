@@ -329,9 +329,12 @@ export function getSpread(id: string): Spread | undefined {
 export const DEFAULT_SPREAD_ID = "general";
 
 /** Spreads currently offered. Never returns an empty catalog. */
-export function enabledSpreads(disabled: readonly string[]): Spread[] {
-  const list = SPREADS.filter((s) => !disabled.includes(s.id));
-  return list.length > 0 ? list : SPREADS;
+export function enabledSpreads(
+  disabled: readonly string[],
+  all: readonly Spread[] = SPREADS,
+): Spread[] {
+  const list = all.filter((s) => !disabled.includes(s.id));
+  return list.length > 0 ? list : [...all];
 }
 
 /** A sensible replacement when the preferred spread has been switched off. */

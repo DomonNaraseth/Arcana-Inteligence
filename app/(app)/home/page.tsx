@@ -6,9 +6,8 @@ import { aiStatus } from "@/lib/ai/provider";
 import type { ReadingRow } from "@/lib/data/readings";
 import { bangkokDateKey, formatThaiDate } from "@/lib/format";
 import { getContext, supabaseConfigured } from "@/lib/supabase/server";
-import { DECK } from "@/lib/tarot/deck";
 import { dailyCardIndex } from "@/lib/tarot/draw";
-import { getSpread } from "@/lib/tarot/spreads";
+import { DEFAULT_KNOWLEDGE, getKnowledge } from "@/lib/tarot/knowledge";
 
 export const metadata: Metadata = { title: "หน้าหลัก" };
 
@@ -22,10 +21,12 @@ const QUICK = [
 export default async function HomePage() {
   let recent: Pick<ReadingRow, "id" | "question" | "spread_id" | "status" | "title" | "tendency" | "created_at">[] = [];
   let seed = "guest";
+  let kb = DEFAULT_KNOWLEDGE;
   if (supabaseConfigured()) {
     try {
       const { supabase, userKey } = await getContext();
       seed = userKey;
+      kb = await getKnowledge(supabase);
       const { data } = await supabase
         .from("arcana_readings")
         .select("id, question, spread_id, status, title, tendency, created_at")
@@ -39,7 +40,7 @@ export default async function HomePage() {
 
   const today = bangkokDateKey();
   const pick = dailyCardIndex(`${seed}|${today}`);
-  const card = DECK[pick.index];
+  const card = kb.cards[pick.index];
   const ai = await aiStatus();
 
   return (
@@ -147,7 +148,7 @@ export default async function HomePage() {
                       {r.title ?? r.question}
                     </p>
                     <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ivory-dim">
-                      <span>{getSpread(r.spread_id)?.nameTh ?? r.spread_id}</span>
+                      <span>{kb.spread(r.spread_id)?.nameTh ?? r.spread_id}</span>
                       <span>{formatThaiDate(r.created_at)}</span>
                       {r.status === "interpreted" && r.tendency ? (
                         <span className="chip">{r.tendency}</span>

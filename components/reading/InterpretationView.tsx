@@ -1,7 +1,6 @@
 import { AlertTriangle, Compass, Eye, Lightbulb, Mountain, ShieldAlert, Sprout } from "lucide-react";
 import type { Interpretation } from "@/lib/ai/schemas";
-import { getCard } from "@/lib/tarot/deck";
-import type { DrawnCard, SpreadPosition } from "@/lib/tarot/types";
+import type { DrawnCard, SpreadPosition, TarotCard } from "@/lib/tarot/types";
 
 function Section({
   n,
@@ -44,11 +43,13 @@ export function InterpretationView({
   drawn,
   positions,
   quality,
+  cardOf,
 }: {
   data: Interpretation;
   drawn: DrawnCard[];
   positions: SpreadPosition[];
   quality: { passed: boolean; attempts: number; issues: string[] } | null;
+  cardOf: (id: string) => TarotCard;
 }) {
   const byPosition = new Map(drawn.map((d) => [d.position, d]));
 
@@ -83,7 +84,8 @@ export function InterpretationView({
           <div className="space-y-3">
             {data.cards.map((c) => {
               const d = byPosition.get(c.position);
-              const card = getCard(c.card_id);
+              // card ids were verified against the draw before the reading was saved
+              const card = d ? cardOf(d.cardId) : undefined;
               const pos = positions[c.position - 1];
               return (
                 <details

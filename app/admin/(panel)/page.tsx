@@ -7,7 +7,7 @@ import { requireAdminPage } from "@/lib/admin";
 import { aiStatus } from "@/lib/ai/provider";
 import { CATEGORY_TH } from "@/lib/ai/schemas";
 import { estimateCostUsd, getSettings } from "@/lib/settings";
-import { getSpread } from "@/lib/tarot/spreads";
+import { getKnowledge } from "@/lib/tarot/knowledge";
 
 export const metadata: Metadata = { title: "ภาพรวม" };
 
@@ -67,10 +67,11 @@ export default async function AdminOverviewPage({
   const requested = Number((await searchParams).days);
   const days = RANGES.includes(requested) ? requested : 30;
 
-  const [{ data, error }, settings, ai] = await Promise.all([
+  const [{ data, error }, settings, ai, kb] = await Promise.all([
     admin.supabase.rpc("arcana_admin_overview", { p_days: days }),
     getSettings(admin.supabase, { fresh: true }),
     aiStatus(),
+    getKnowledge(admin.supabase),
   ]);
 
   if (error || !data) {
@@ -186,7 +187,7 @@ export default async function AdminOverviewPage({
           <div className="mt-5">
             <BarList
               items={o.by_spread.slice(0, 8).map((s) => ({
-                label: getSpread(s.key)?.nameTh ?? s.key,
+                label: kb.spread(s.key)?.nameTh ?? s.key,
                 value: s.count,
               }))}
             />

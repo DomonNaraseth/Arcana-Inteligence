@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ReadingExperience } from "@/components/reading/ReadingExperience";
-import { resolveSpread } from "@/lib/ai/engine";
 import { aiStatus } from "@/lib/ai/provider";
 import { getWallet } from "@/lib/credits";
 import { getReadingBundle } from "@/lib/data/readings";
 import { getSettings, interpretCost } from "@/lib/settings";
 import { getContext } from "@/lib/supabase/server";
+import { getKnowledge } from "@/lib/tarot/knowledge";
 
 export const metadata: Metadata = { title: "การอ่านไพ่" };
 
@@ -20,8 +20,16 @@ export default async function ReadingPage({
   const bundle = await getReadingBundle(supabase, id);
   if (!bundle) notFound();
 
-  const spread = resolveSpread(bundle.reading.spread_id);
-  const [ai, settings] = await Promise.all([aiStatus(), getSettings(supabase)]);
+  const [ai, settings, kb] = await Promise.all([
+    aiStatus(),
+    getSettings(supabase),
+    getKnowledge(supabase),
+  ]);
+  const spread = kb.resolveSpread(bundle.reading.spread_id);
+  // effective knowledge (defaults + admin edits) for exactly the cards on the table
+  const cards = Object.fromEntries(
+    bundle.drawn.map((d) => [d.cardId, kb.requireCard(d.cardId)]),
+  );
   const wallet = settings.credits.enabled ? await getWallet(supabase) : null;
   const credit = wallet
     ? {
@@ -50,6 +58,7 @@ export default async function ReadingPage({
         positions: spread.positions,
       }}
       initialDrawn={bundle.drawn}
+      initialCards={cards}
       initialInterpretation={bundle.interpretation}
       initialQuality={bundle.quality}
       initialMessages={bundle.messages}

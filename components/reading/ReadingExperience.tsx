@@ -10,7 +10,7 @@ import type { MessageRow } from "@/lib/data/readings";
 import { formatThaiDate } from "@/lib/format";
 import { computeSpreadStats } from "@/lib/tarot/analysis";
 import { ELEMENT_TH, requireCard } from "@/lib/tarot/deck";
-import type { DrawnCard, SpreadPosition } from "@/lib/tarot/types";
+import type { DrawnCard, SpreadPosition, TarotCard } from "@/lib/tarot/types";
 import { TarotCardView } from "@/components/tarot/TarotCardView";
 import { CardDetailDialog } from "./CardDetailDialog";
 import { FollowUpChat } from "./FollowUpChat";
@@ -33,6 +33,8 @@ interface Props {
   reading: { id: string; question: string; createdAt: string; understanding: string | null };
   spread: { id: string; nameTh: string; nameEn: string; positions: SpreadPosition[] };
   initialDrawn: DrawnCard[];
+  /** effective card knowledge (defaults + admin edits) for the drawn cards */
+  initialCards: Record<string, TarotCard>;
   initialInterpretation: Interpretation | null;
   initialQuality: Quality;
   initialMessages: MessageRow[];
@@ -50,6 +52,7 @@ export function ReadingExperience({
   reading,
   spread,
   initialDrawn,
+  initialCards,
   initialInterpretation,
   initialQuality,
   initialMessages,
@@ -57,6 +60,11 @@ export function ReadingExperience({
   credit,
 }: Props) {
   const router = useRouter();
+  const [cards, setCards] = useState(initialCards);
+  const cardOf = useCallback(
+    (id: string): TarotCard => cards[id] ?? requireCard(id),
+    [cards],
+  );
   const [balance, setBalance] = useState(credit?.balance ?? 0);
   const cannotAfford = credit !== null && balance < credit.interpretCost;
   const [drawn, setDrawn] = useState<DrawnCard[]>(initialDrawn);
@@ -122,7 +130,8 @@ export function ReadingExperience({
     }
   }
 
-  function handleNewCard(card: DrawnCard) {
+  function handleNewCard(card: DrawnCard, data: TarotCard | null) {
+    if (data) setCards((prev) => ({ ...prev, [card.cardId]: data }));
     setDrawn((prev) => [...prev, card]);
     setInstant(false);
     setTimeout(() => setRevealed((prev) => new Set(prev).add(card.position)), 400);
@@ -176,7 +185,7 @@ export function ReadingExperience({
 
           <ol className="flex flex-wrap items-start justify-center gap-x-3 gap-y-6 sm:gap-x-5">
             {original.map((d, i) => {
-              const card = requireCard(d.cardId);
+              const card = cardOf(d.cardId);
               const pos = spread.positions[i];
               const isRevealed = revealed.has(d.position);
               return (
@@ -225,7 +234,7 @@ export function ReadingExperience({
               </p>
               <ol className="mt-4 flex flex-wrap justify-center gap-4">
                 {extras.map((d) => {
-                  const card = requireCard(d.cardId);
+                  const card = cardOf(d.cardId);
                   const isRevealed = revealed.has(d.position);
                   return (
                     <li key={d.position} className="flex w-24 flex-col items-center sm:w-28">
@@ -369,6 +378,7 @@ export function ReadingExperience({
             drawn={original}
             positions={spread.positions}
             quality={quality}
+            cardOf={cardOf}
           />
           <FollowUpChat
             readingId={reading.id}
@@ -408,7 +418,7 @@ export function ReadingExperience({
 
       {detail && (
         <CardDetailDialog
-          card={requireCard(detail.cardId)}
+          card={cardOf(detail.cardId)}
           orientation={detail.orientation}
           positionName={
             detail.isFollowup

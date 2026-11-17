@@ -1,15 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { answerFollowUp, resolveSpread } from "@/lib/ai/engine";
+import { answerFollowUp } from "@/lib/ai/engine";
 import type { ChatMessage } from "@/lib/ai/provider";
 import { fail, handleError } from "@/lib/api";
 import { getWallet, spendCredits } from "@/lib/credits";
 import { getReadingBundle, logUsage, withinQuota } from "@/lib/data/readings";
 import { followUpCost, getSettings } from "@/lib/settings";
 import { getContext } from "@/lib/supabase/server";
-import { requireCard } from "@/lib/tarot/deck";
 import { drawAdditional } from "@/lib/tarot/draw";
+import { getKnowledge } from "@/lib/tarot/knowledge";
 
 export const maxDuration = 120;
 
@@ -37,7 +37,7 @@ export async function POST(
     if (!bundle.interpretation) {
       return fail("bad_request", "ต้องอ่านไพ่ชุดนี้ให้เสร็จก่อนจึงจะถามต่อได้", 400);
     }
-    const settings = await getSettings(supabase);
+    const [settings, kb] = await Promise.all([getSettings(supabase), getKnowledge(supabase)]);
     if (!(await withinQuota(supabase, "followup", settings.limits.daily_followups))) {
       return fail("quota_exceeded", "วันนี้คุณถามต่อครบจำนวนที่กำหนดแล้ว กลับมาใหม่พรุ่งนี้", 429);
     }
@@ -96,7 +96,7 @@ export async function POST(
     }));
 
     const userContent = newCard
-      ? `${message}\n\n[ผู้ถามกดเปิดไพ่เสริม 1 ใบ ได้ไพ่: ${requireCard(newCard.cardId).name} (${
+      ? `${message}\n\n[ผู้ถามกดเปิดไพ่เสริม 1 ใบ ได้ไพ่: ${kb.requireCard(newCard.cardId).name} (${
           newCard.orientation === "upright" ? "ตั้งตรง" : "กลับหัว"
         }) — กรุณาอ่านไพ่เสริมใบนี้ประกอบคำถามข้างต้น โดยแยกให้ชัดจากไพ่ชุดเดิม]`
       : message;
@@ -104,11 +104,12 @@ export async function POST(
     const { reply, usage } = await answerFollowUp({
       question: bundle.reading.question,
       analysis: bundle.reading.question_analysis,
-      spread: resolveSpread(bundle.reading.spread_id),
+      spread: kb.resolveSpread(bundle.reading.spread_id),
       drawn,
       interpretation: bundle.interpretation,
       history,
       message: userContent,
+      cardOf: kb.requireCard,
       addendum: settings.prompt_addendum.text,
     });
 
@@ -140,7 +141,14 @@ export async function POST(
     });
     await logUsage(supabase, userKey, "followup", usage, id);
 
-    return NextResponse.json({ reply, newCard, charged: spent.charged, balance: spent.balance });
+    return NextResponse.json({
+      reply,
+      newCard,
+      // effective knowledge for the clarifier, so the client shows edited meanings
+      newCardData: newCard ? kb.requireCard(newCard.cardId) : null,
+      charged: spent.charged,
+      balance: spent.balance,
+    });
   } catch (err) {
     return handleError(err, "/api/readings/[id]/chat");
   }

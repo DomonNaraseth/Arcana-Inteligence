@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Layers, Loader2, Send } from "lucide-react";
 import type { MessageRow } from "@/lib/data/readings";
-import type { DrawnCard } from "@/lib/tarot/types";
+import type { DrawnCard, TarotCard } from "@/lib/tarot/types";
 
 interface ChatItem {
   id: string;
@@ -33,7 +33,7 @@ export function FollowUpChat({
   suggestions: string[];
   extraCount: number;
   maxExtra: number;
-  onNewCard: (card: DrawnCard) => void;
+  onNewCard: (card: DrawnCard, data: TarotCard | null) => void;
   credit: { balance: number; followupCost: number; clarifierCost: number } | null;
   onBalance: (balance: number) => void;
 }) {
@@ -75,7 +75,9 @@ export function FollowUpChat({
       if (!res.ok) {
         throw new Error(data?.error?.message ?? "ส่งคำถามไม่สำเร็จ กรุณาลองใหม่");
       }
-      if (data.newCard) onNewCard(data.newCard as DrawnCard);
+      if (data.newCard) {
+        onNewCard(data.newCard as DrawnCard, (data.newCardData as TarotCard | null) ?? null);
+      }
       if (typeof data.balance === "number") onBalance(data.balance);
       setMessages((prev) => [
         ...prev,

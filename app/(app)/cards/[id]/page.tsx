@@ -3,24 +3,27 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { DECK, ELEMENT_TH, SUIT_TH, getCard } from "@/lib/tarot/deck";
+import { currentKnowledge } from "@/lib/tarot/current";
+import { ELEMENT_TH, SUIT_TH } from "@/lib/tarot/deck";
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const card = getCard((await params).id);
+  const card = (await currentKnowledge()).card((await params).id);
   return { title: card ? `${card.name} (${card.nameTh})` : "ไม่พบไพ่" };
 }
 
 export default async function CardPage({ params }: { params: Promise<{ id: string }> }) {
-  const card = getCard((await params).id);
+  const kb = await currentKnowledge();
+  const card = kb.card((await params).id);
   if (!card) notFound();
 
-  const index = DECK.findIndex((c) => c.id === card.id);
-  const prev = DECK[(index - 1 + DECK.length) % DECK.length];
-  const next = DECK[(index + 1) % DECK.length];
+  const deck = kb.cards;
+  const index = deck.findIndex((c) => c.id === card.id);
+  const prev = deck[(index - 1 + deck.length) % deck.length];
+  const next = deck[(index + 1) % deck.length];
 
   return (
     <div className="mx-auto max-w-4xl">

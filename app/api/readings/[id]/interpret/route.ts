@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { interpretReading, resolveSpread } from "@/lib/ai/engine";
+import { interpretReading } from "@/lib/ai/engine";
 import { fail, handleError } from "@/lib/api";
 import { getWallet, spendCredits } from "@/lib/credits";
 import { getReadingBundle, logUsage, withinQuota } from "@/lib/data/readings";
 import { getSettings, interpretCost, promptVersionFor } from "@/lib/settings";
 import { getContext } from "@/lib/supabase/server";
-import { KNOWLEDGE_BASE_VERSION } from "@/lib/tarot/deck";
+import { getKnowledge } from "@/lib/tarot/knowledge";
 
 export const maxDuration = 300;
 
@@ -28,8 +28,8 @@ export async function POST(
       });
     }
 
-    const settings = await getSettings(supabase);
-    const spread = resolveSpread(bundle.reading.spread_id);
+    const [settings, kb] = await Promise.all([getSettings(supabase), getKnowledge(supabase)]);
+    const spread = kb.resolveSpread(bundle.reading.spread_id);
     const drawn = bundle.drawn.filter((d) => !d.isFollowup);
     const cost = settings.credits.enabled ? interpretCost(settings, drawn.length) : 0;
 
@@ -56,6 +56,8 @@ export async function POST(
       analysis: bundle.reading.question_analysis,
       spread,
       drawn,
+      cardOf: kb.requireCard,
+      kbVersion: kb.version,
       addendum: settings.prompt_addendum.text,
     });
 
@@ -66,7 +68,7 @@ export async function POST(
       provider: usage.provider,
       model: usage.model,
       prompt_version: promptVersionFor(settings),
-      kb_version: KNOWLEDGE_BASE_VERSION,
+      kb_version: kb.version,
       input_tokens: usage.inputTokens,
       output_tokens: usage.outputTokens,
     });

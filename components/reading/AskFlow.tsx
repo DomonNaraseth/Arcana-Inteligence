@@ -300,7 +300,7 @@ export function AskFlow({
               )}
               <ol className="mt-4 flex flex-wrap gap-2 text-xs text-ivory-dim">
                 {selected.positions.map((p, i) => (
-                  <li key={p} className="rounded-md border border-white/10 px-2 py-1">
+                  <li key={i} className="rounded-md border border-white/10 px-2 py-1">
                     <span className="text-gold">{i + 1}</span> {p}
                   </li>
                 ))}

@@ -14,6 +14,8 @@ AI Tarot & Life Guidance platform. Thai-first UI. Read `docs/ARCHITECTURE.md` be
 7. **Credits are charged after success, once.** Check the balance before the AI call, call `spendCredits` only after the result is saved, always with a stable idempotency key. Never charge for a failed or quality-rejected request.
 8. **Admin authority lives in SQL.** Every admin function calls `arcana_require_admin()` / `arcana_require_owner()`; API routes use `adminRoute()` and return 404 to non-admins. Admin screens identify users by `arcana_user_ref()` — never expose a guest token. Every admin mutation writes `arcana_audit_logs`.
 
+9. **Read card and spread text from the effective knowledge base.** Anything shown to a user or sent to the AI uses `getKnowledge()` / `currentKnowledge()` (shipped defaults + admin overrides) and stores `kb.version`. Only structural code (`draw.ts`, `analysis.ts`) may read the static deck. Overrides may change text only — never ids, arcana, suit, element, card counts or position keys.
+
 ## Architecture conventions
 
 - Modular monolith. Business logic lives in `lib/` and never imports from `components/` or `app/`.

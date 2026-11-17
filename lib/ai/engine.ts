@@ -1,4 +1,3 @@
-import { getSpread, DEFAULT_SPREAD_ID } from "../tarot/spreads";
 import type { DrawnCard, Spread } from "../tarot/types";
 import {
   AiNotConfiguredError,
@@ -12,6 +11,7 @@ import {
   followUpSystem,
   interpretationPrompt,
   questionAnalysisSystem,
+  type CardLookup,
 } from "./prompts";
 import {
   interpretationSchema,
@@ -38,20 +38,26 @@ function usageOf(results: GenerateResult[]): Usage | null {
 }
 
 // ── Question Intelligence ──────────────────────────────────────────────────
+/**
+ * @param spreads the spreads currently on offer (effective names and
+ *   descriptions, disabled ones already removed) — the model may only
+ *   recommend from this list.
+ */
 export async function analyzeQuestion(
   question: string,
+  spreads: readonly Spread[],
 ): Promise<{ analysis: QuestionAnalysis; usage: Usage | null }> {
   try {
     const result = await generate({
       tier: "fast",
       maxTokens: 900,
-      system: questionAnalysisSystem(),
+      system: questionAnalysisSystem(spreads),
       messages: [{ role: "user", content: `คำถามของผู้ใช้:\n"""${question}"""` }],
     });
     const parsed = questionAnalysisSchema.safeParse(extractJson(result.text));
     if (parsed.success) {
       const analysis: QuestionAnalysis = { ...parsed.data, source: "ai" };
-      if (!getSpread(analysis.recommended_spread)) {
+      if (!spreads.some((s) => s.id === analysis.recommended_spread)) {
         analysis.recommended_spread = heuristicAnalysis(question).recommended_spread;
       }
       return { analysis, usage: usageOf([result]) };
@@ -107,6 +113,8 @@ export async function interpretReading(args: {
   analysis: QuestionAnalysis | null;
   spread: Spread;
   drawn: DrawnCard[];
+  cardOf: CardLookup;
+  kbVersion: string;
   addendum?: string;
 }): Promise<{ interpretation: Interpretation; usage: Usage; quality: QualityReport }> {
   const { system, user } = interpretationPrompt({
@@ -219,6 +227,7 @@ export async function answerFollowUp(args: {
   interpretation: Interpretation;
   history: ChatMessage[];
   message: string;
+  cardOf: CardLookup;
   addendum?: string;
 }): Promise<{ reply: string; usage: Usage }> {
   const system = followUpSystem({
@@ -227,6 +236,7 @@ export async function answerFollowUp(args: {
     spread: args.spread,
     drawn: args.drawn,
     interpretationSummary: summarizeInterpretation(args.interpretation),
+    cardOf: args.cardOf,
     addendum: args.addendum,
   });
   // keep the conversation window bounded to control token cost
@@ -240,8 +250,4 @@ export async function answerFollowUp(args: {
   const reply = result.text.trim();
   if (!reply) throw new Error("Empty follow-up response");
   return { reply, usage: usageOf([result])! };
-}
-
-export function resolveSpread(id: string | undefined | null): Spread {
-  return getSpread(id ?? "") ?? getSpread(DEFAULT_SPREAD_ID)!;
 }

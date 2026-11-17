@@ -29,6 +29,8 @@ const ACTION_TH: Record<string, string> = {
   grant_credits: "ปรับเครดิตผู้ใช้",
   set_tier: "ตั้งแพ็กเกจผู้ใช้",
   bootstrap_owner: "ตั้งค่า Owner เริ่มต้น",
+  set_kb_override: "แก้ไขความรู้ไพ่",
+  reset_kb_override: "คืนค่าเริ่มต้นความรู้ไพ่",
 };
 
 function summarize(row: AuditRow): string {
@@ -38,6 +40,14 @@ function summarize(row: AuditRow): string {
   }
   if (row.action === "set_tier") return `แพ็กเกจ ${d.tier}${d.period_end ? ` ถึง ${formatThaiDate(String(d.period_end))}` : ""}`;
   if (row.action === "set_admin_emails") return `${d.count} อีเมล`;
+  if (row.action === "set_kb_override") {
+    const fields = d.new && typeof d.new === "object" ? Object.keys(d.new as object) : [];
+    return `ช่องที่แก้: ${fields.join(", ")} (ฉบับที่ ${d.revision})`;
+  }
+  if (row.action === "reset_kb_override") {
+    const fields = d.old && typeof d.old === "object" ? Object.keys(d.old as object) : [];
+    return `ยกเลิกการแก้ไขช่อง: ${fields.join(", ")}`;
+  }
   if (row.action === "set_setting") {
     const text = JSON.stringify(d.new);
     return text.length > 140 ? `${text.slice(0, 140)}…` : text;

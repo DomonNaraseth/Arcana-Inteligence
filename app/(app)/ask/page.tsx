@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AskFlow } from "@/components/reading/AskFlow";
 import { DEFAULT_SETTINGS, getSettings } from "@/lib/settings";
 import { getContext, supabaseConfigured } from "@/lib/supabase/server";
+import { DEFAULT_KNOWLEDGE, getKnowledge } from "@/lib/tarot/knowledge";
 import { enabledSpreads } from "@/lib/tarot/spreads";
 
 export const metadata: Metadata = { title: "ถามไพ่" };
@@ -14,15 +15,17 @@ export default async function AskPage({
   const { q } = await searchParams;
 
   let settings = DEFAULT_SETTINGS;
+  let kb = DEFAULT_KNOWLEDGE;
   if (supabaseConfigured()) {
     try {
-      settings = await getSettings((await getContext()).supabase);
+      const { supabase } = await getContext();
+      [settings, kb] = await Promise.all([getSettings(supabase), getKnowledge(supabase)]);
     } catch {
       // configuration banner is shown by the layout
     }
   }
 
-  const spreads = enabledSpreads(settings.disabled_spreads).map((s) => ({
+  const spreads = enabledSpreads(settings.disabled_spreads, kb.spreads).map((s) => ({
     id: s.id,
     nameTh: s.nameTh,
     nameEn: s.nameEn,
