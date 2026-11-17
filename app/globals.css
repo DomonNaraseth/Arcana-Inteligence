@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --midnight: #101827;
+  --navy: #17263c;
+  --gold: #c6a15b;
+  --ivory: #f0e9da;
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-midnight text-ivory font-sans antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(31, 52, 83, 0.75), transparent),
+      radial-gradient(circle at 85% 110%, rgba(198, 161, 91, 0.06), transparent 40%);
+    background-attachment: fixed;
+    min-height: 100dvh;
+    line-height: 1.75;
+  }
+  h1, h2, h3, h4 {
+    @apply font-serif;
+    line-height: 1.35;
+  }
+  ::selection {
+    background: rgba(198, 161, 91, 0.35);
+  }
+  :focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-[15px] font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-gold {
+    @apply btn bg-gold text-midnight shadow-glow hover:bg-gold-light active:scale-[0.98];
+  }
+  .btn-ghost {
+    @apply btn border border-gold/40 text-gold-light hover:border-gold hover:bg-gold/10;
+  }
+  .btn-quiet {
+    @apply btn px-4 py-2 text-sm text-ivory-dim hover:bg-white/5 hover:text-ivory;
+  }
+  .panel {
+    @apply rounded-2xl border border-white/10 bg-navy/60 backdrop-blur-sm;
+  }
+  .panel-gold {
+    @apply rounded-2xl border border-gold/30 bg-gradient-to-b from-navy-light/70 to-navy/70 backdrop-blur-sm;
+  }
+  .eyebrow {
+    @apply text-xs font-medium uppercase tracking-[0.28em] text-gold;
+  }
+  .field {
+    @apply w-full rounded-xl border border-white/15 bg-midnight/60 px-4 py-3 text-ivory placeholder:text-ivory-dim/50 transition-colors focus:border-gold/70 focus:outline-none;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs text-gold-light;
+  }
+  .divider-ornament {
+    @apply flex items-center gap-4 text-gold/60;
+  }
+  .divider-ornament::before,
+  .divider-ornament::after {
+    content: "";
+    @apply h-px flex-1 bg-gradient-to-r from-transparent via-gold/40 to-transparent;
+  }
+}
+
+/* 3D card flip */
+.card-scene {
+  perspective: 1200px;
+}
+.card-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* subtle star field */
+.stars {
+  background-image:
+    radial-gradient(1px 1px at 12% 22%, rgba(240, 233, 218, 0.7), transparent),
+    radial-gradient(1px 1px at 78% 12%, rgba(240, 233, 218, 0.5), transparent),
+    radial-gradient(1.5px 1.5px at 44% 68%, rgba(198, 161, 91, 0.6), transparent),
+    radial-gradient(1px 1px at 91% 55%, rgba(240, 233, 218, 0.45), transparent),
+    radial-gradient(1px 1px at 27% 85%, rgba(240, 233, 218, 0.4), transparent),
+    radial-gradient(1.5px 1.5px at 63% 35%, rgba(198, 161, 91, 0.45), transparent),
+    radial-gradient(1px 1px at 5% 60%, rgba(240, 233, 218, 0.35), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
