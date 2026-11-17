@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { AppNav } from "@/components/shell/AppNav";
+import { AuthNotice } from "@/components/shell/AuthNotice";
 import { getContext, supabaseConfigured } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +19,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-dvh pb-24 md:pb-0">
       <AppNav signedIn={signedIn} />
+      <Suspense fallback={null}>
+        <AuthNotice />
+      </Suspense>
       {!configured && (
         <div role="alert" className="border-b border-red-400/30 bg-red-950/40 px-5 py-3 text-center text-sm text-red-200">
           Configuration Missing — ยังไม่ได้ตั้งค่าฐานข้อมูล (NEXT_PUBLIC_SUPABASE_URL,

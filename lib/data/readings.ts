@@ -13,6 +13,8 @@ export interface ReadingRow {
   title: string | null;
   tendency: string | null;
   draw_meta: Record<string, unknown> | null;
+  /** set when the user bookmarked the reading */
+  saved_at: string | null;
   created_at: string;
 }
 

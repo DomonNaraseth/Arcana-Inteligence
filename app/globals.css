@@ -100,6 +100,46 @@
     radial-gradient(1px 1px at 5% 60%, rgba(240, 233, 218, 0.35), transparent);
 }
 
+/* Print / "save as PDF": ink-friendly, content only */
+@media print {
+  :root {
+    color-scheme: light;
+  }
+  html,
+  body {
+    background: #fff !important;
+    background-image: none !important;
+  }
+  * {
+    color: #1a1a1a !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+  .panel,
+  .panel-gold,
+  .chip,
+  details,
+  section,
+  article {
+    background: #fff !important;
+    background-image: none !important;
+    border-color: #cfcfcf !important;
+  }
+  .stars,
+  footer {
+    display: none !important;
+  }
+  article,
+  details,
+  li {
+    break-inside: avoid;
+  }
+  @page {
+    margin: 14mm;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

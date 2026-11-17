@@ -21,7 +21,8 @@
 | Quality Control (ตรวจไพ่/ตำแหน่งด้วยโค้ด + self-check, retry แบบมีขอบเขต) | ✅ |
 | Follow-up conversation + เปิดไพ่เสริม (ไม่เปลี่ยนไพ่/คำอ่านเดิม) | ✅ |
 | Reading History + ค้นหา, Tarot Journal, Daily Tarot, คลังไพ่ | ✅ |
-| Guest session (ใช้ได้ทันที) + บัญชีอีเมล (Supabase Auth) + ย้ายประวัติ guest → บัญชี | ✅ |
+| Guest session (ใช้ได้ทันที) + เข้าสู่ระบบด้วย Google / อีเมล (Supabase Auth) + ย้ายประวัติ guest → บัญชี | ✅ (Google ต้องเพิ่ม Redirect URL ใน Supabase — ดูหัวข้อ "เข้าสู่ระบบด้วย Google") |
+| บันทึก (ปักหมุด) การอ่านไพ่ + ตัวกรอง "ที่บันทึกไว้" ในประวัติ + พิมพ์/บันทึกเป็น PDF | ✅ |
 | AI usage log (token ต่อ feature ต่อ reading) + fair-use quota รายวัน | ✅ |
 | Admin dashboard `/admin` — RBAC (Owner / Admin), ภาพรวม + ต้นทุน AI, ผู้ใช้และเครดิต, ตั้งค่าระบบ, audit log + error log | ✅ |
 | ระบบเครดิต (หักหลังสำเร็จ, ไม่หักซ้ำ, เครดิตฟรีรายวันตามแพ็กเกจ) + แพ็กเกจสมาชิกแบบกำหนดมือ | ✅ (ปิดไว้เป็นค่าเริ่มต้น เปิดได้ใน Admin) |
@@ -74,6 +75,18 @@ npm run dev
 
 สิทธิ์ถูกตัดสินใน SQL (`arcana_admin_role()`) ทุกคำขอ ทุกการเปลี่ยนแปลงของผู้ดูแลถูกบันทึกใน `arcana_audit_logs`
 
+## เข้าสู่ระบบด้วย Google
+
+ใช้ Google provider ของ Supabase Auth (PKCE) ปลายทางหลังล็อกอินคือ `/auth/callback` ซึ่งแลก code เป็น session แล้วย้ายการอ่านไพ่ บันทึก และเครดิตของ guest ในเบราว์เซอร์นั้นเข้าบัญชี
+
+ต้องตั้งค่า 1 อย่างใน Supabase Dashboard → Authentication → URL Configuration → **Redirect URLs** เพิ่ม:
+
+```
+https://<โดเมนของแอป>/**
+```
+
+(เพิ่ม `http://localhost:3000/**` ด้วยถ้าจะทดสอบบนเครื่อง) ถ้าไม่เพิ่ม หลังล็อกอิน Google ผู้ใช้จะถูกส่งไปที่ Site URL ของโปรเจกต์ Supabase แทนที่จะกลับมาที่แอปนี้
+
 ## การชำระเงิน (Stripe)
 
 1. สมัคร Stripe แล้วนำ secret key มาตั้งเป็น `STRIPE_SECRET_KEY` (เริ่มด้วย `sk_test_…` เพื่อทดสอบ)
@@ -84,7 +97,7 @@ npm run dev
 
 ## ฐานข้อมูล
 
-รัน `supabase/migrations/0001_arcana_init.sql`, `0002_arcana_admin_credits.sql`, `0003_arcana_kb_overrides.sql` และ `0004_arcana_payments.sql` ตามลำดับ แล้วบันทึก hash ของ server secret (และ `admin_key_sha256`, `owner_emails` สำหรับ Admin):
+รัน `supabase/migrations/0001_arcana_init.sql`, `0002_arcana_admin_credits.sql`, `0003_arcana_kb_overrides.sql`, `0004_arcana_payments.sql` และ `0005_arcana_saved_readings.sql` ตามลำดับ แล้วบันทึก hash ของ server secret (และ `admin_key_sha256`, `owner_emails` สำหรับ Admin):
 
 ```sql
 insert into public.arcana_server_config (key, value)

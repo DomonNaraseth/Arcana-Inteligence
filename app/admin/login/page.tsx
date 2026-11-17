@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { GoogleSignInButton } from "@/components/account/GoogleSignInButton";
 import { AdminLogin } from "@/components/admin/AdminLogin";
 import { Sigil } from "@/components/brand/Logo";
 import { getAdmin } from "@/lib/admin";
@@ -24,9 +25,12 @@ export default async function AdminLoginPage() {
           <p className="mt-1 text-sm text-ivory-dim">
             เข้าสู่ระบบด้วยอีเมลที่ได้รับสิทธิ์ แล้วกลับมาที่หน้านี้ ระบบจะพาเข้าแดชบอร์ดให้อัตโนมัติ
           </p>
-          <Link href="/account" className="btn-gold mt-4 w-full">
-            ไปหน้าเข้าสู่ระบบ
-          </Link>
+          <GoogleSignInButton next="/admin" className="mt-4" />
+          <p className="mt-3 text-center text-sm">
+            <Link href="/account" className="text-gold hover:text-gold-light">
+              หรือเข้าสู่ระบบด้วยอีเมลและรหัสผ่าน
+            </Link>
+          </p>
         </section>
 
         <section className="panel mt-4 p-6">

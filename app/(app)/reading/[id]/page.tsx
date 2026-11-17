@@ -16,7 +16,7 @@ export default async function ReadingPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { supabase } = await getContext();
+  const { supabase, isGuest } = await getContext();
   const bundle = await getReadingBundle(supabase, id);
   if (!bundle) notFound();
 
@@ -49,6 +49,7 @@ export default async function ReadingPage({
         id: bundle.reading.id,
         question: bundle.reading.question,
         createdAt: bundle.reading.created_at,
+        saved: Boolean(bundle.reading.saved_at),
         understanding: bundle.reading.question_analysis?.understanding ?? null,
       }}
       spread={{
@@ -64,6 +65,7 @@ export default async function ReadingPage({
       initialMessages={bundle.messages}
       aiConfigured={ai.configured}
       credit={credit}
+      isGuest={isGuest}
     />
   );
 }

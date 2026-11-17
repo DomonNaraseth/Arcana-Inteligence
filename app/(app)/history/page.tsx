@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import clsx from "clsx";
+import { ArrowRight, BookmarkCheck } from "lucide-react";
+import { GoogleSignInButton } from "@/components/account/GoogleSignInButton";
 import type { ReadingRow } from "@/lib/data/readings";
 import { formatThaiDate } from "@/lib/format";
 import { getContext } from "@/lib/supabase/server";
@@ -8,23 +10,29 @@ import { getKnowledge } from "@/lib/tarot/knowledge";
 
 export const metadata: Metadata = { title: "ประวัติการอ่านไพ่" };
 
-type Row = Pick<ReadingRow, "id" | "question" | "spread_id" | "status" | "title" | "tendency" | "created_at">;
+type Row = Pick<
+  ReadingRow,
+  "id" | "question" | "spread_id" | "status" | "title" | "tendency" | "saved_at" | "created_at"
+>;
 
 export default async function HistoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; saved?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, saved } = await searchParams;
   const term = (q ?? "").trim().slice(0, 80);
-  const { supabase } = await getContext();
+  const savedOnly = saved === "1";
+  const { supabase, isGuest } = await getContext();
   const kb = await getKnowledge(supabase);
 
   let query = supabase
     .from("arcana_readings")
-    .select("id, question, spread_id, status, title, tendency, created_at")
-    .order("created_at", { ascending: false })
+    .select("id, question, spread_id, status, title, tendency, saved_at, created_at")
     .limit(100);
+  query = savedOnly
+    ? query.not("saved_at", "is", null).order("saved_at", { ascending: false })
+    : query.order("created_at", { ascending: false });
   if (term) {
     const safe = term.replace(/[%_,()]/g, " ");
     query = query.or(`question.ilike.%${safe}%,title.ilike.%${safe}%`);
@@ -32,13 +40,53 @@ export default async function HistoryPage({
   const { data, error } = await query.returns<Row[]>();
   const rows = data ?? [];
 
+  const tabHref = (onlySaved: boolean) => {
+    const p = new URLSearchParams();
+    if (term) p.set("q", term);
+    if (onlySaved) p.set("saved", "1");
+    const s = p.toString();
+    return s ? `/history?${s}` : "/history";
+  };
+
   return (
     <div className="mx-auto max-w-3xl">
       <p className="eyebrow">Reading History</p>
       <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">ประวัติการอ่านไพ่</h1>
       <p className="mt-2 text-ivory-dim">ไพ่และคำอ่านทุกครั้งถูกบันทึกไว้ตามจริง ไม่มีการแก้ไขย้อนหลัง</p>
 
-      <form className="mt-6 flex gap-3" role="search">
+      {isGuest && (
+        <div className="panel mt-6 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-ivory-dim">
+            คุณกำลังใช้งานแบบผู้เยี่ยมชม ประวัตินี้อยู่ในเบราว์เซอร์เครื่องนี้เท่านั้น
+            เข้าสู่ระบบเพื่อเก็บไว้กับบัญชีและเปิดดูได้จากทุกอุปกรณ์
+          </p>
+          <GoogleSignInButton next="/history" className="shrink-0 sm:w-64" />
+        </div>
+      )}
+
+      <nav className="mt-6 flex gap-1 border-b border-white/10" aria-label="ตัวกรองประวัติ">
+        {[
+          { label: "ทั้งหมด", only: false },
+          { label: "ที่บันทึกไว้", only: true },
+        ].map((t) => (
+          <Link
+            key={t.label}
+            href={tabHref(t.only)}
+            aria-current={savedOnly === t.only ? "page" : undefined}
+            className={clsx(
+              "-mb-px border-b-2 px-4 py-2.5 text-sm transition-colors",
+              savedOnly === t.only
+                ? "border-gold text-gold-light"
+                : "border-transparent text-ivory-dim hover:text-ivory",
+            )}
+          >
+            {t.label}
+          </Link>
+        ))}
+      </nav>
+
+      <form className="mt-5 flex gap-3" role="search">
+        {savedOnly && <input type="hidden" name="saved" value="1" />}
         <label htmlFor="history-q" className="sr-only">
           ค้นหาคำถาม
         </label>
@@ -63,7 +111,11 @@ export default async function HistoryPage({
       {rows.length === 0 && !error ? (
         <div className="mt-10 rounded-2xl border border-dashed border-white/15 px-6 py-14 text-center">
           <p className="text-ivory-dim">
-            {term ? `ไม่พบการอ่านไพ่ที่ตรงกับ “${term}”` : "ยังไม่มีประวัติการอ่านไพ่"}
+            {term
+              ? `ไม่พบการอ่านไพ่ที่ตรงกับ “${term}”`
+              : savedOnly
+                ? "ยังไม่มีการอ่านไพ่ที่บันทึกไว้ — กด “บันทึกการอ่านไพ่นี้” ในหน้าคำอ่านเพื่อปักหมุด"
+                : "ยังไม่มีประวัติการอ่านไพ่"}
           </p>
           <Link href="/ask" className="mt-4 inline-flex items-center gap-1 text-gold hover:text-gold-light">
             เริ่มถามไพ่ <ArrowRight className="h-4 w-4" />
@@ -84,6 +136,11 @@ export default async function HistoryPage({
                     <span className="chip">{r.tendency}</span>
                   ) : (
                     <span className="chip border-white/20 bg-white/5 text-ivory-dim">รออ่านไพ่</span>
+                  )}
+                  {r.saved_at && (
+                    <span className="ml-auto flex items-center gap-1 text-gold-light">
+                      <BookmarkCheck className="h-3.5 w-3.5" aria-hidden="true" /> บันทึกไว้
+                    </span>
                   )}
                 </div>
                 <p className="mt-2 text-lg font-medium text-ivory group-hover:text-gold-light">

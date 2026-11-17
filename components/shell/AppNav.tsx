@@ -23,7 +23,7 @@ export function AppNav({ signedIn }: { signedIn: boolean }) {
   const pathname = usePathname();
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-midnight/85 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-midnight/85 backdrop-blur-md print:hidden">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
           <Logo href="/home" />
           <nav className="hidden items-center gap-1 md:flex" aria-label="เมนูหลัก">
@@ -60,7 +60,7 @@ export function AppNav({ signedIn }: { signedIn: boolean }) {
 
       {/* mobile bottom navigation */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-midnight/95 backdrop-blur-md md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-midnight/95 backdrop-blur-md md:hidden print:hidden"
         aria-label="เมนูหลัก (มือถือ)"
       >
         <ul className="mx-auto flex max-w-md justify-between px-2 pb-[env(safe-area-inset-bottom)]">

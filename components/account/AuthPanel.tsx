@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { GoogleSignInButton } from "./GoogleSignInButton";
 
 function thaiAuthError(message: string): string {
   const m = message.toLowerCase();
@@ -18,6 +19,7 @@ function thaiAuthError(message: string): string {
 export function AuthPanel({ signedIn, email }: { signedIn: boolean; email: string | null }) {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [showEmail, setShowEmail] = useState(false);
   const [formEmail, setFormEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -91,14 +93,31 @@ export function AuthPanel({ signedIn, email }: { signedIn: boolean; email: strin
   return (
     <section className="panel mt-6 p-6" aria-labelledby="auth-title">
       <h2 id="auth-title" className="text-xl font-semibold">
-        {mode === "signin" ? "เข้าสู่ระบบ" : "สร้างบัญชี"}
+        เข้าสู่ระบบเพื่อเก็บการอ่านไพ่ไว้กับบัญชี
       </h2>
       <p className="mt-1 text-sm text-ivory-dim">
-        ไม่บังคับ — สร้างบัญชีเพื่อเก็บประวัติการอ่านไพ่ข้ามอุปกรณ์
-        ประวัติในเบราว์เซอร์นี้จะถูกย้ายเข้าบัญชีให้อัตโนมัติเมื่อเข้าสู่ระบบ
+        ไม่บังคับ — เมื่อเข้าสู่ระบบ การอ่านไพ่ บันทึก และเครดิตในเบราว์เซอร์นี้จะถูกย้ายเข้าบัญชีให้อัตโนมัติ
+        และเปิดดูได้จากทุกอุปกรณ์
       </p>
 
+      <GoogleSignInButton next="/account" className="mt-5" />
+
+      <div className="divider-ornament my-6 text-xs">หรือ</div>
+
+      <button
+        type="button"
+        onClick={() => setShowEmail((v) => !v)}
+        aria-expanded={showEmail}
+        className="text-sm text-gold underline-offset-4 hover:underline"
+      >
+        {showEmail ? "ซ่อนแบบฟอร์มอีเมล" : "ใช้อีเมลและรหัสผ่าน"}
+      </button>
+
+      {showEmail && (
       <form onSubmit={submit} className="mt-5 space-y-4">
+        <p className="text-sm font-medium text-ivory">
+          {mode === "signin" ? "เข้าสู่ระบบด้วยอีเมล" : "สร้างบัญชีด้วยอีเมล"}
+        </p>
         <div>
           <label htmlFor="auth-email" className="text-sm text-ivory-dim">
             อีเมล
@@ -157,6 +176,7 @@ export function AuthPanel({ signedIn, email }: { signedIn: boolean; email: strin
           </button>
         </div>
       </form>
+      )}
     </section>
   );
 }

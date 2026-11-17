@@ -16,6 +16,7 @@ import { CardDetailDialog } from "./CardDetailDialog";
 import { FollowUpChat } from "./FollowUpChat";
 import { InterpretationView } from "./InterpretationView";
 import { JournalQuick } from "./JournalQuick";
+import { ReadingActions } from "./ReadingActions";
 
 const MAX_EXTRA = 3;
 
@@ -30,7 +31,13 @@ const PROGRESS_STEPS = [
 type Quality = { passed: boolean; attempts: number; issues: string[] } | null;
 
 interface Props {
-  reading: { id: string; question: string; createdAt: string; understanding: string | null };
+  reading: {
+    id: string;
+    question: string;
+    createdAt: string;
+    saved: boolean;
+    understanding: string | null;
+  };
   spread: { id: string; nameTh: string; nameEn: string; positions: SpreadPosition[] };
   initialDrawn: DrawnCard[];
   /** effective card knowledge (defaults + admin edits) for the drawn cards */
@@ -46,6 +53,7 @@ interface Props {
     followupCost: number;
     clarifierCost: number;
   } | null;
+  isGuest: boolean;
 }
 
 export function ReadingExperience({
@@ -58,6 +66,7 @@ export function ReadingExperience({
   initialMessages,
   aiConfigured,
   credit,
+  isGuest,
 }: Props) {
   const router = useRouter();
   const [cards, setCards] = useState(initialCards);
@@ -277,6 +286,15 @@ export function ReadingExperience({
         </div>
       </section>
 
+      <div className="mx-auto max-w-3xl">
+        <ReadingActions
+          readingId={reading.id}
+          initialSaved={reading.saved}
+          isGuest={isGuest}
+          canExport={Boolean(interpretation)}
+        />
+      </div>
+
       {/* interpret CTA / progress */}
       <AnimatePresence mode="wait">
         {!interpretation && allRevealed && !loading && (
@@ -380,6 +398,7 @@ export function ReadingExperience({
             quality={quality}
             cardOf={cardOf}
           />
+          <div className="space-y-8 print:hidden">
           <FollowUpChat
             readingId={reading.id}
             initialMessages={initialMessages}
@@ -399,10 +418,11 @@ export function ReadingExperience({
             onBalance={setBalance}
           />
           <JournalQuick readingId={reading.id} defaultTitle={interpretation.title} />
+          </div>
         </div>
       )}
 
-      <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-6 text-sm">
+      <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-6 text-sm print:hidden">
         <Link href="/ask" className="text-gold hover:text-gold-light">
           + เริ่มการอ่านไพ่ใหม่
         </Link>
