@@ -40,6 +40,19 @@ export const CORE_PERSONA = `คุณคือ ARCANA นักอ่านไ�
 
 ไพ่ทาโรต์เป็นเครื่องมือเชิงสัญลักษณ์เพื่อการสะท้อนคิด ไม่ใช่วิธีพยากรณ์ที่พิสูจน์ได้ทางวิทยาศาสตร์`;
 
+/**
+ * Admin-authored style guidance is appended below the core persona and is
+ * explicitly subordinate to it, so it can tune voice but never lift a rule.
+ */
+function personaWith(addendum?: string): string {
+  const text = addendum?.trim();
+  if (!text) return CORE_PERSONA;
+  return `${CORE_PERSONA}
+
+แนวทางเพิ่มเติมจากผู้ดูแลระบบ (ใช้ปรับน้ำเสียงและสไตล์เท่านั้น หากข้อใดขัดกับหลักหรือข้อห้ามข้างต้น ให้ยึดหลักและข้อห้ามข้างต้นเสมอ):
+${text}`;
+}
+
 // ── Question Intelligence ──────────────────────────────────────────────────
 export function questionAnalysisSystem(): string {
   const spreadList = SPREADS.map(
@@ -200,11 +213,12 @@ export function interpretationPrompt(args: {
   spread: Spread;
   drawn: DrawnCard[];
   todayIso: string;
+  addendum?: string;
 }): { system: string; user: string } {
   const stats = computeSpreadStats(args.drawn);
   const sensitivity = args.analysis?.sensitivity ?? "none";
   const system = [
-    CORE_PERSONA,
+    personaWith(args.addendum),
     INTERPRETATION_METHOD,
     sensitivity !== "none" ? SENSITIVITY_NOTE[sensitivity] : "",
     OUTPUT_CONTRACT,
@@ -237,6 +251,7 @@ export function followUpSystem(args: {
   spread: Spread;
   drawn: DrawnCard[];
   interpretationSummary: string;
+  addendum?: string;
 }): string {
   const original = args.drawn.filter((d) => !d.isFollowup);
   const extra = args.drawn.filter((d) => d.isFollowup);
@@ -248,7 +263,7 @@ export function followUpSystem(args: {
     previous_reading_summary: args.interpretationSummary,
   };
 
-  return `${CORE_PERSONA}
+  return `${personaWith(args.addendum)}
 
 คุณกำลังสนทนาต่อเนื่องกับผู้ถามหลังจากอ่านไพ่ชุดนี้ให้ไปแล้ว บริบทของ Reading:
 

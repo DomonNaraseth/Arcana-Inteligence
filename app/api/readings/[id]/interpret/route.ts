@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { interpretReading, resolveSpread } from "@/lib/ai/engine";
-import { PROMPT_VERSION } from "@/lib/ai/schemas";
 import { fail, handleError } from "@/lib/api";
+import { getWallet, spendCredits } from "@/lib/credits";
 import { getReadingBundle, logUsage, withinQuota } from "@/lib/data/readings";
+import { getSettings, interpretCost, promptVersionFor } from "@/lib/settings";
 import { getContext } from "@/lib/supabase/server";
 import { KNOWLEDGE_BASE_VERSION } from "@/lib/tarot/deck";
 
@@ -23,10 +24,26 @@ export async function POST(
       return NextResponse.json({
         interpretation: bundle.interpretation,
         quality: bundle.quality,
+        charged: 0,
       });
     }
 
-    if (!(await withinQuota(supabase, "interpret"))) {
+    const settings = await getSettings(supabase);
+    const spread = resolveSpread(bundle.reading.spread_id);
+    const drawn = bundle.drawn.filter((d) => !d.isFollowup);
+    const cost = settings.credits.enabled ? interpretCost(settings, drawn.length) : 0;
+
+    if (settings.credits.enabled) {
+      const wallet = await getWallet(supabase);
+      if (!wallet) return fail("server_error", "ตรวจสอบเครดิตไม่สำเร็จ กรุณาลองใหม่", 500);
+      if (wallet.balance < cost) {
+        return fail(
+          "insufficient_credits",
+          `เครดิตไม่พอ — การอ่านไพ่ชุดนี้ใช้ ${cost} เครดิต คุณมี ${wallet.balance} เครดิต ไพ่ของคุณถูกบันทึกไว้แล้ว กลับมาอ่านได้เมื่อได้รับเครดิตรายวันหรือเติมเครดิต`,
+          402,
+        );
+      }
+    } else if (!(await withinQuota(supabase, "interpret", settings.limits.daily_readings))) {
       return fail(
         "quota_exceeded",
         "วันนี้คุณอ่านไพ่ครบจำนวนที่กำหนดแล้ว ลองให้เวลากับคำอ่านที่ได้รับ แล้วกลับมาใหม่พรุ่งนี้",
@@ -34,14 +51,12 @@ export async function POST(
       );
     }
 
-    const spread = resolveSpread(bundle.reading.spread_id);
-    const drawn = bundle.drawn.filter((d) => !d.isFollowup);
-
     const { interpretation, usage, quality } = await interpretReading({
       question: bundle.reading.question,
       analysis: bundle.reading.question_analysis,
       spread,
       drawn,
+      addendum: settings.prompt_addendum.text,
     });
 
     const { error } = await supabase.from("arcana_reading_analyses").insert({
@@ -50,7 +65,7 @@ export async function POST(
       quality,
       provider: usage.provider,
       model: usage.model,
-      prompt_version: PROMPT_VERSION,
+      prompt_version: promptVersionFor(settings),
       kb_version: KNOWLEDGE_BASE_VERSION,
       input_tokens: usage.inputTokens,
       output_tokens: usage.outputTokens,
@@ -69,11 +84,23 @@ export async function POST(
       })
       .eq("id", id);
 
-    // usage is logged only after a successful, saved interpretation
+    // Charge and meter only after the reading is saved: a failed AI request
+    // costs the user nothing, and the idempotency key rules out double charges.
+    const spent = await spendCredits(supabase, {
+      amount: cost,
+      feature: "interpret",
+      readingId: id,
+      idempotencyKey: `interpret:${id}`,
+    });
     await logUsage(supabase, userKey, "interpret", usage, id);
 
-    return NextResponse.json({ interpretation, quality });
+    return NextResponse.json({
+      interpretation,
+      quality,
+      charged: spent.charged,
+      balance: spent.balance,
+    });
   } catch (err) {
-    return handleError(err);
+    return handleError(err, "/api/readings/[id]/interpret");
   }
 }

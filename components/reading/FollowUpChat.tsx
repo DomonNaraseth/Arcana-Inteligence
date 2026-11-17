@@ -25,6 +25,8 @@ export function FollowUpChat({
   extraCount,
   maxExtra,
   onNewCard,
+  credit,
+  onBalance,
 }: {
   readingId: string;
   initialMessages: MessageRow[];
@@ -32,6 +34,8 @@ export function FollowUpChat({
   extraCount: number;
   maxExtra: number;
   onNewCard: (card: DrawnCard) => void;
+  credit: { balance: number; followupCost: number; clarifierCost: number } | null;
+  onBalance: (balance: number) => void;
 }) {
   const [messages, setMessages] = useState<ChatItem[]>(
     initialMessages.map((m) => ({ id: m.id, role: m.role, content: m.content, kind: m.kind })),
@@ -72,6 +76,7 @@ export function FollowUpChat({
         throw new Error(data?.error?.message ?? "ส่งคำถามไม่สำเร็จ กรุณาลองใหม่");
       }
       if (data.newCard) onNewCard(data.newCard as DrawnCard);
+      if (typeof data.balance === "number") onBalance(data.balance);
       setMessages((prev) => [
         ...prev,
         { id: `a-${Date.now()}`, role: "assistant", content: data.reply as string, kind: "chat" },
@@ -86,7 +91,11 @@ export function FollowUpChat({
     }
   }
 
-  const canDraw = extraCount < maxExtra;
+  const askCost = credit?.followupCost ?? 0;
+  const drawCost = askCost + (credit?.clarifierCost ?? 0);
+  const canAsk = !credit || credit.balance >= askCost;
+  const canDraw = extraCount < maxExtra && (!credit || credit.balance >= drawCost);
+  const costLabel = (n: number) => (n > 0 ? ` · ${n} เครดิต` : "");
 
   return (
     <section className="panel p-6 sm:p-8" aria-labelledby="chat-title">
@@ -138,7 +147,7 @@ export function FollowUpChat({
               <button
                 key={s}
                 type="button"
-                disabled={busy}
+                disabled={busy || !canAsk}
                 onClick={() => void send(s, false)}
                 className="rounded-2xl border border-white/15 px-4 py-2 text-left text-sm text-ivory-dim transition-colors hover:border-gold/50 hover:text-ivory"
               >
@@ -180,20 +189,27 @@ export function FollowUpChat({
           className="field resize-none"
         />
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <button type="submit" disabled={busy || !input.trim()} className="btn-gold px-5 py-2.5 text-sm">
-            <Send className="h-4 w-4" /> ถามจากไพ่ชุดเดิม
+          <button type="submit" disabled={busy || !input.trim() || !canAsk} className="btn-gold px-5 py-2.5 text-sm">
+            <Send className="h-4 w-4" /> ถามจากไพ่ชุดเดิม{costLabel(askCost)}
           </button>
           <button
             type="button"
             disabled={busy || !input.trim() || !canDraw}
             onClick={() => void send(input, true)}
             className="btn-ghost px-5 py-2.5 text-sm"
-            title={canDraw ? undefined : "เปิดไพ่เสริมครบจำนวนแล้ว"}
+            title={
+              canDraw
+                ? undefined
+                : extraCount >= maxExtra
+                  ? "เปิดไพ่เสริมครบจำนวนแล้ว"
+                  : "เครดิตไม่พอ"
+            }
           >
-            <Layers className="h-4 w-4" /> ถามพร้อมเปิดไพ่เสริม 1 ใบ
+            <Layers className="h-4 w-4" /> ถามพร้อมเปิดไพ่เสริม 1 ใบ{costLabel(drawCost)}
           </button>
           <span className="text-xs text-ivory-dim/70">
             ไพ่เสริม {extraCount}/{maxExtra}
+            {credit && ` · คงเหลือ ${credit.balance} เครดิต`}
           </span>
         </div>
       </form>

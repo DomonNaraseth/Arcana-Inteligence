@@ -11,6 +11,9 @@ AI Tarot & Life Guidance platform. Thai-first UI. Read `docs/ARCHITECTURE.md` be
 5. **Direct answer first.** The reading output always leads with `direct_answer`.
 6. **Responsible guidance.** No guaranteed outcomes, no death/illness/disaster predictions, no medical/legal/investment directives, no claims about third parties' private thoughts, no fear-based retention. These live in `CORE_PERSONA` (`lib/ai/prompts.ts`) — do not weaken them.
 
+7. **Credits are charged after success, once.** Check the balance before the AI call, call `spendCredits` only after the result is saved, always with a stable idempotency key. Never charge for a failed or quality-rejected request.
+8. **Admin authority lives in SQL.** Every admin function calls `arcana_require_admin()` / `arcana_require_owner()`; API routes use `adminRoute()` and return 404 to non-admins. Admin screens identify users by `arcana_user_ref()` — never expose a guest token. Every admin mutation writes `arcana_audit_logs`.
+
 ## Architecture conventions
 
 - Modular monolith. Business logic lives in `lib/` and never imports from `components/` or `app/`.
@@ -18,6 +21,8 @@ AI Tarot & Life Guidance platform. Thai-first UI. Read `docs/ARCHITECTURE.md` be
   - `lib/ai/` — provider adapter, layered prompts (L1–L6), Zod schemas, engine (analyze / interpret / follow-up), heuristic fallback
   - `lib/data/` — Supabase data access, usage logging, quotas
   - `lib/supabase/` — request context (`getContext()`), browser auth client
+  - `lib/settings.ts` — runtime settings (Zod-validated, defaults on any invalid row); `lib/credits.ts` — wallet + spend; `lib/admin.ts` — role resolution, `requireAdminPage`, `adminRoute`
+- Operational knobs (limits, reversal probability, credit prices, enabled spreads, models, prompt addendum) are runtime settings edited in `/admin/settings`, not environment variables. Add a new one by extending `settingsSchemas` + `DEFAULT_SETTINGS` and the key allow-list in `arcana_admin_set_setting`.
 - All database access goes through `getContext()` on the server. The browser Supabase client is used for auth only.
 - Ownership key: `u:<auth uid>` or `g:<guest token>` (see `arcana_user_key()` in the migration). Never trust a client-supplied owner.
 - All tables are prefixed `arcana_` (the schema may live in a shared Supabase project).

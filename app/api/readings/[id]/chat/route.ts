@@ -1,9 +1,12 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { answerFollowUp, resolveSpread } from "@/lib/ai/engine";
 import type { ChatMessage } from "@/lib/ai/provider";
 import { fail, handleError } from "@/lib/api";
+import { getWallet, spendCredits } from "@/lib/credits";
 import { getReadingBundle, logUsage, withinQuota } from "@/lib/data/readings";
+import { followUpCost, getSettings } from "@/lib/settings";
 import { getContext } from "@/lib/supabase/server";
 import { requireCard } from "@/lib/tarot/deck";
 import { drawAdditional } from "@/lib/tarot/draw";
@@ -34,8 +37,22 @@ export async function POST(
     if (!bundle.interpretation) {
       return fail("bad_request", "ต้องอ่านไพ่ชุดนี้ให้เสร็จก่อนจึงจะถามต่อได้", 400);
     }
-    if (!(await withinQuota(supabase, "followup"))) {
+    const settings = await getSettings(supabase);
+    if (!(await withinQuota(supabase, "followup", settings.limits.daily_followups))) {
       return fail("quota_exceeded", "วันนี้คุณถามต่อครบจำนวนที่กำหนดแล้ว กลับมาใหม่พรุ่งนี้", 429);
+    }
+
+    const cost = settings.credits.enabled ? followUpCost(settings, drawCard) : 0;
+    if (cost > 0) {
+      const wallet = await getWallet(supabase);
+      if (!wallet) return fail("server_error", "ตรวจสอบเครดิตไม่สำเร็จ กรุณาลองใหม่", 500);
+      if (wallet.balance < cost) {
+        return fail(
+          "insufficient_credits",
+          `เครดิตไม่พอ — ${drawCard ? "การถามพร้อมเปิดไพ่เสริม" : "การถามต่อ"}ใช้ ${cost} เครดิต คุณมี ${wallet.balance} เครดิต`,
+          402,
+        );
+      }
     }
 
     let drawn = bundle.drawn;
@@ -56,6 +73,7 @@ export async function POST(
         1,
         drawn.map((d) => d.cardId),
         nextPosition,
+        { reversalProbability: settings.reversal_probability },
       );
       const { error } = await supabase.from("arcana_reading_cards").insert({
         reading_id: id,
@@ -91,6 +109,7 @@ export async function POST(
       interpretation: bundle.interpretation,
       history,
       message: userContent,
+      addendum: settings.prompt_addendum.text,
     });
 
     const base = Date.now();
@@ -112,10 +131,17 @@ export async function POST(
     ]);
     if (msgError) console.error("[arcana] save messages failed:", msgError.message);
 
+    // charged only after a successful answer
+    const spent = await spendCredits(supabase, {
+      amount: cost,
+      feature: newCard ? "followup+clarifier" : "followup",
+      readingId: id,
+      idempotencyKey: `chat:${randomUUID()}`,
+    });
     await logUsage(supabase, userKey, "followup", usage, id);
 
-    return NextResponse.json({ reply, newCard });
+    return NextResponse.json({ reply, newCard, charged: spent.charged, balance: spent.balance });
   } catch (err) {
-    return handleError(err);
+    return handleError(err, "/api/readings/[id]/chat");
   }
 }

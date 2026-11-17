@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { questionAnalysisSchema } from "@/lib/ai/schemas";
 import { fail, handleError } from "@/lib/api";
+import { getSettings } from "@/lib/settings";
 import { getContext } from "@/lib/supabase/server";
 import { KNOWLEDGE_BASE_VERSION } from "@/lib/tarot/deck";
-import { DEFAULT_REVERSAL_PROBABILITY, drawForSpread } from "@/lib/tarot/draw";
+import { drawForSpread } from "@/lib/tarot/draw";
 import { getSpread } from "@/lib/tarot/spreads";
 
 const bodySchema = z.object({
@@ -17,10 +18,6 @@ const bodySchema = z.object({
   idempotencyKey: z.string().uuid(),
 });
 
-function reversalProbability(): number {
-  const n = Number(process.env.ARCANA_REVERSAL_PROBABILITY);
-  return Number.isFinite(n) && n >= 0 && n <= 1 ? n : DEFAULT_REVERSAL_PROBABILITY;
-}
 
 /**
  * Creates a reading and draws its cards in one step. The draw is performed by
@@ -36,6 +33,10 @@ export async function POST(req: Request) {
     if (!spread) return fail("bad_request", "ไม่พบรูปแบบการวางไพ่ที่เลือก", 400);
 
     const { supabase, userKey } = await getContext();
+    const settings = await getSettings(supabase);
+    if (settings.disabled_spreads.includes(spread.id)) {
+      return fail("bad_request", "รูปแบบการวางไพ่นี้ปิดให้บริการชั่วคราว กรุณาเลือกรูปแบบอื่น", 400);
+    }
 
     // idempotency: a retried request returns the reading it already created
     const existing = await supabase
@@ -45,7 +46,9 @@ export async function POST(req: Request) {
       .maybeSingle<{ id: string }>();
     if (existing.data) return NextResponse.json({ id: existing.data.id });
 
-    const draw = drawForSpread(spread, { reversalProbability: reversalProbability() });
+    const draw = drawForSpread(spread, {
+      reversalProbability: settings.reversal_probability,
+    });
 
     const { data: reading, error } = await supabase
       .from("arcana_readings")
@@ -93,6 +96,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ id: reading.id });
   } catch (err) {
-    return handleError(err);
+    return handleError(err, "/api/readings");
   }
 }

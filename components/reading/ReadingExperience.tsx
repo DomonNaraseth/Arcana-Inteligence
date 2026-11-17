@@ -37,6 +37,13 @@ interface Props {
   initialQuality: Quality;
   initialMessages: MessageRow[];
   aiConfigured: boolean;
+  /** present only when the credit system is switched on */
+  credit: {
+    balance: number;
+    interpretCost: number;
+    followupCost: number;
+    clarifierCost: number;
+  } | null;
 }
 
 export function ReadingExperience({
@@ -47,8 +54,11 @@ export function ReadingExperience({
   initialQuality,
   initialMessages,
   aiConfigured,
+  credit,
 }: Props) {
   const router = useRouter();
+  const [balance, setBalance] = useState(credit?.balance ?? 0);
+  const cannotAfford = credit !== null && balance < credit.interpretCost;
   const [drawn, setDrawn] = useState<DrawnCard[]>(initialDrawn);
   const [interpretation, setInterpretation] = useState(initialInterpretation);
   const [quality, setQuality] = useState<Quality>(initialQuality);
@@ -100,6 +110,7 @@ export function ReadingExperience({
       }
       setInterpretation(data.interpretation as Interpretation);
       setQuality((data.quality as Quality) ?? null);
+      if (typeof data.balance === "number") setBalance(data.balance);
       setTimeout(
         () => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
         150,
@@ -282,10 +293,30 @@ export function ReadingExperience({
                 {error}
               </p>
             )}
-            <button type="button" onClick={() => void interpret()} disabled={!aiConfigured} className="btn-gold mt-6 text-base">
+            <button
+              type="button"
+              onClick={() => void interpret()}
+              disabled={!aiConfigured || cannotAfford}
+              className="btn-gold mt-6 text-base"
+            >
               {error ? <RotateCcw className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
               {error ? "ลองอ่านไพ่อีกครั้ง" : "ให้ ARCANA อ่านไพ่ชุดนี้"}
             </button>
+            {credit && (
+              <p className="mt-3 text-sm text-ivory-dim">
+                {credit.interpretCost === 0
+                  ? "การอ่านไพ่ชุดนี้ไม่ใช้เครดิต"
+                  : `ใช้ ${credit.interpretCost} เครดิต · คุณมี ${balance} เครดิต`}
+                {cannotAfford && (
+                  <span className="mt-1 block text-amber-200">
+                    เครดิตไม่พอ — ไพ่ชุดนี้ถูกบันทึกไว้แล้ว กลับมาอ่านได้เมื่อได้รับเครดิตรายวัน{" "}
+                    <Link href="/account" className="underline underline-offset-4">
+                      ดูเครดิตของฉัน
+                    </Link>
+                  </span>
+                )}
+              </p>
+            )}
           </motion.section>
         )}
 
@@ -346,6 +377,16 @@ export function ReadingExperience({
             extraCount={extras.length}
             maxExtra={MAX_EXTRA}
             onNewCard={handleNewCard}
+            credit={
+              credit
+                ? {
+                    balance,
+                    followupCost: credit.followupCost,
+                    clarifierCost: credit.clarifierCost,
+                  }
+                : null
+            }
+            onBalance={setBalance}
           />
           <JournalQuick readingId={reading.id} defaultTitle={interpretation.title} />
         </div>

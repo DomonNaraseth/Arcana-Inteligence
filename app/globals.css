@@ -27,6 +27,10 @@
     @apply font-serif;
     line-height: 1.35;
   }
+  /* the display serif defaults to old-style figures, where "1" reads as "I" */
+  h1, h2, h3, h4, .font-serif {
+    font-variant-numeric: lining-nums;
+  }
   ::selection {
     background: rgba(198, 161, 91, 0.35);
   }

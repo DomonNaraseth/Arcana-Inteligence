@@ -52,10 +52,31 @@ export class AiProviderError extends Error {
   }
 }
 
+export interface ModelOverrides {
+  anthropic_deep?: string;
+  anthropic_fast?: string;
+  gateway_deep?: string;
+  gateway_chat?: string;
+  gateway_fast?: string;
+}
+
+/** Admin-configured models; take precedence over environment defaults. */
+let overrides: ModelOverrides = {};
+
+export function configureModels(next: ModelOverrides) {
+  const changed = JSON.stringify(next) !== JSON.stringify(overrides);
+  overrides = { ...next };
+  if (changed) {
+    for (const tier of Object.keys(workingGatewayModel) as ModelTier[]) {
+      delete workingGatewayModel[tier];
+    }
+  }
+}
+
 function anthropicModel(tier: ModelTier): string {
   return tier === "fast"
-    ? process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-5-5"
-    : process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
+    ? overrides.anthropic_fast || process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-5-5"
+    : overrides.anthropic_deep || process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
 }
 
 /**
@@ -104,10 +125,12 @@ const workingGatewayModel: Partial<Record<ModelTier, string>> = {};
 function gatewayCandidates(tier: ModelTier): string[] {
   const configured =
     tier === "fast"
-      ? process.env.AI_GATEWAY_FAST_MODEL
+      ? overrides.gateway_fast || process.env.AI_GATEWAY_FAST_MODEL
       : tier === "chat"
-        ? process.env.AI_GATEWAY_CHAT_MODEL || process.env.AI_GATEWAY_MODEL
-        : process.env.AI_GATEWAY_MODEL;
+        ? overrides.gateway_chat ||
+          process.env.AI_GATEWAY_CHAT_MODEL ||
+          process.env.AI_GATEWAY_MODEL
+        : overrides.gateway_deep || process.env.AI_GATEWAY_MODEL;
   const list = [workingGatewayModel[tier], configured, ...GATEWAY_FALLBACKS[tier]].filter(
     (m): m is string => Boolean(m),
   );

@@ -119,23 +119,15 @@ export async function logUsage(
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Fair-use limits per session per 24h — protects AI cost. */
-export const LIMITS = {
-  readings: Number(process.env.ARCANA_DAILY_READINGS ?? 15),
-  followups: Number(process.env.ARCANA_DAILY_FOLLOWUPS ?? 60),
-  analyses: Number(process.env.ARCANA_DAILY_ANALYSES ?? 60),
-};
-
+/**
+ * Fair-use limit per session per 24h — protects AI cost. The limit comes from
+ * runtime settings (Admin → Settings).
+ */
 export async function withinQuota(
   db: SupabaseClient,
   feature: "interpret" | "followup" | "analyze",
+  limit: number,
 ): Promise<boolean> {
-  const limit =
-    feature === "interpret"
-      ? LIMITS.readings
-      : feature === "followup"
-        ? LIMITS.followups
-        : LIMITS.analyses;
   const since = new Date(Date.now() - DAY_MS).toISOString();
   const { count, error } = await db
     .from("arcana_ai_usage")

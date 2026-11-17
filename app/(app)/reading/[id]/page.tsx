@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { ReadingExperience } from "@/components/reading/ReadingExperience";
 import { resolveSpread } from "@/lib/ai/engine";
 import { aiStatus } from "@/lib/ai/provider";
+import { getWallet } from "@/lib/credits";
 import { getReadingBundle } from "@/lib/data/readings";
+import { getSettings, interpretCost } from "@/lib/settings";
 import { getContext } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "การอ่านไพ่" };
@@ -19,7 +21,19 @@ export default async function ReadingPage({
   if (!bundle) notFound();
 
   const spread = resolveSpread(bundle.reading.spread_id);
-  const ai = await aiStatus();
+  const [ai, settings] = await Promise.all([aiStatus(), getSettings(supabase)]);
+  const wallet = settings.credits.enabled ? await getWallet(supabase) : null;
+  const credit = wallet
+    ? {
+        balance: wallet.balance,
+        interpretCost: interpretCost(
+          settings,
+          bundle.drawn.filter((d) => !d.isFollowup).length,
+        ),
+        followupCost: settings.credits.cost_followup,
+        clarifierCost: settings.credits.cost_clarifier,
+      }
+    : null;
 
   return (
     <ReadingExperience
@@ -40,6 +54,7 @@ export default async function ReadingPage({
       initialQuality={bundle.quality}
       initialMessages={bundle.messages}
       aiConfigured={ai.configured}
+      credit={credit}
     />
   );
 }

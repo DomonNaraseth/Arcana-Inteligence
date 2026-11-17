@@ -119,6 +119,43 @@ All errors: `{ "error": { "code", "message" } }` with codes `bad_request`, `not_
 | DELETE | `/api/journals/:id` | – | `{ ok }` |
 | POST | `/api/auth/claim` | – | `{ claimed }` |
 
+### Admin API (all return 404 to non-admins)
+
+| Method | Endpoint | Body | Notes |
+| --- | --- | --- | --- |
+| POST / DELETE | `/api/admin/session` | `{ key }` | operator-key sign-in / sign-out |
+| POST | `/api/admin/settings` | `{ key, value }` | validated against `settingsSchemas` |
+| POST | `/api/admin/admins` | `{ emails }` | owner only |
+| POST | `/api/admin/users/credits` | `{ ref, amount, note }` | negative amount = correction |
+| POST | `/api/admin/users/tier` | `{ ref, tier, periodEnd }` | manual subscription |
+| POST | `/api/admin/ai-probe` | `{ models }` | admin session or server secret |
+
+## 6b. Admin, settings, credits (M6)
+
+Migration: `supabase/migrations/0002_arcana_admin_credits.sql`.
+
+**RBAC.** `arcana_admin_role()` returns `owner`, `admin` or null. It is evaluated in SQL on every request from either the verified JWT email (`owner_emails` / `admin_emails` in `arcana_server_config`) or the operator key (`x-arcana-admin` header from an httpOnly, SameSite=Strict cookie; only its SHA-256 is stored). Owners alone can change the admin list. Every admin function calls `arcana_require_admin()` / `arcana_require_owner()` itself, so the API layer is not the security boundary. Admin screens never see guest tokens — users are identified by `arcana_user_ref()` (`u:<uid>` or `g#<hash>`).
+
+**Tables** (RLS on, no policies — reachable only through SECURITY DEFINER functions):
+
+| Table | Purpose |
+| --- | --- |
+| `arcana_settings` | runtime configuration (key → jsonb) |
+| `arcana_audit_logs` | who changed what (settings, credits, tiers, admin list, key logins) |
+| `arcana_error_logs` | AI failures, quality failures, failed admin logins |
+| `arcana_credit_transactions` | append-only ledger; balance = sum(amount); unique `(user_key, idempotency_key)` |
+| `arcana_subscriptions` | tier per user (free / basic / premium / unlimited), set manually for now |
+
+**Runtime settings** (`lib/settings.ts`, 30 s cache per instance, invalid rows fall back to defaults): `reversal_probability`, `limits`, `credits`, `disabled_spreads`, `models`, `prompt_addendum`, `model_prices`, `packages`. The prompt addendum is appended below the core persona and is explicitly subordinate to it; its hash is part of the prompt version stored on each analysis.
+
+**Credits** (off by default). When enabled, interpretation costs credits by spread size (≤3 / 4–7 / ≥8 cards) instead of the daily reading quota; follow-ups and clarifier cards have their own prices.
+
+1. `arcana_wallet()` applies the once-per-day top-up (balance raised to the tier's allowance; credits above it are kept) under a per-user advisory lock.
+2. The route checks the balance **before** calling the AI — an unaffordable request costs nothing and makes no AI call (HTTP 402).
+3. `arcana_spend_credits()` runs **after** the result is saved: atomic, never below zero, idempotent on `interpret:<reading id>` / `chat:<uuid>`. A failed or quality-rejected AI call is never charged.
+
+**Cost monitoring.** `arcana_ai_usage` records provider, model and tokens per call; Admin → Overview multiplies by the editable `model_prices` table. It is an estimate, not an invoice. No payment gateway is integrated, so revenue and margin are not shown.
+
 ## 7. Folder structure
 
 ```
@@ -140,7 +177,8 @@ docs/
 | Phase | Scope | Status |
 | --- | --- | --- |
 | M0–M5 | Architecture, foundation, tarot core, AI intelligence, reading experience, follow-up, history, journal | ✅ shipped |
-| M6 | Admin dashboard (RBAC), prompt/model management in DB, KB + spreads in tables, analytics, credits/subscription framework | next |
+| M6 | Admin dashboard (owner/admin RBAC), runtime settings, model + prompt-addendum management, usage and cost analytics, credit ledger, manual subscription tiers, audit + error logs | ✅ shipped |
+| M6+ | Tarot knowledge base and spread positions editable in the database; full prompt versions with rollback | next |
 | M7 | E2E tests (Playwright), 200-question evaluation set with human rubric (25/20/15/15/10/10/5), cost tuning per model tier | next |
 | Later | Payment gateway, custom spreads, share cards, voice, astrology / numerology / BaZi as separate disciplines | planned |
 
@@ -149,5 +187,6 @@ docs/
 - The schema currently lives inside a shared Supabase project (free-tier project limit). Moving to a dedicated project = run the migration there, insert the secret hash, change two env vars.
 - Because the Supabase project is shared, its Auth redirect URLs belong to another app: email confirmation works, but the link lands on that app's site — users then return and sign in. A dedicated project (or adding this domain to the redirect allow-list) removes that wart. Guest mode is unaffected.
 - AI quality has unit-level guards and structural validation, but the human-reviewed evaluation set is not built yet.
-- **AI provider in production today:** no `ANTHROPIC_API_KEY` is set and the Vercel AI Gateway free tier does not include Claude models, so the adapter falls through its candidate list to interim models (`openai/gpt-5` for interpretation, `openai/gpt-4.1` for follow-up chat, `openai/gpt-4.1-mini` for question analysis). Setting `ANTHROPIC_API_KEY` (or adding paid gateway credits) switches every tier to Claude with no code change. The provider and model actually used are recorded on each analysis row and in `arcana_ai_usage`.
-- `POST /api/admin/ai-probe` (requires the `x-arcana-server` secret) reports which gateway models the deployment can reach.
+- **AI provider:** with `ANTHROPIC_API_KEY` set the adapter calls Anthropic directly (Claude Sonnet for interpretation and chat, Haiku for question analysis). Without it, it uses the Vercel AI Gateway — whose free tier does not include Claude — and falls through its candidate list to interim models (`openai/gpt-5`, `openai/gpt-4.1`, `openai/gpt-4.1-mini`). The provider and model actually used are recorded on each analysis row and in `arcana_ai_usage`, and shown in Admin → Overview.
+- `POST /api/admin/ai-probe` reports which gateway models the deployment can reach (also available as a button in Admin → Settings).
+- Runtime settings are cached for 30 seconds per server instance, so an admin change can take that long to reach every instance.

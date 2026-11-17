@@ -23,7 +23,9 @@
 | Reading History + ค้นหา, Tarot Journal, Daily Tarot, คลังไพ่ | ✅ |
 | Guest session (ใช้ได้ทันที) + บัญชีอีเมล (Supabase Auth) + ย้ายประวัติ guest → บัญชี | ✅ |
 | AI usage log (token ต่อ feature ต่อ reading) + fair-use quota รายวัน | ✅ |
-| Admin dashboard, Subscription/Credit, Payment, Custom spread, Astrology/BaZi | ⏳ เฟสถัดไป (ดู docs/ARCHITECTURE.md) |
+| Admin dashboard `/admin` — RBAC (Owner / Admin), ภาพรวม + ต้นทุน AI, ผู้ใช้และเครดิต, ตั้งค่าระบบ, audit log + error log | ✅ |
+| ระบบเครดิต (หักหลังสำเร็จ, ไม่หักซ้ำ, เครดิตฟรีรายวันตามแพ็กเกจ) + แพ็กเกจสมาชิกแบบกำหนดมือ | ✅ (ปิดไว้เป็นค่าเริ่มต้น เปิดได้ใน Admin) |
+| Payment gateway, Custom spread, แชร์ผล, เสียงอ่าน, Astrology/BaZi | ⏳ เฟสถัดไป (ดู docs/ARCHITECTURE.md) |
 
 ## Tech stack
 
@@ -54,14 +56,23 @@ npm run dev
 | `ANTHROPIC_MODEL` / `ANTHROPIC_FAST_MODEL` | – | ค่าเริ่มต้น `claude-sonnet-5-5` / `claude-haiku-5-5` |
 | `AI_GATEWAY_API_KEY` | – | ใช้ Vercel AI Gateway เมื่อไม่มี Anthropic key (บน Vercel ใช้ OIDC อัตโนมัติ) |
 | `AI_GATEWAY_MODEL` / `AI_GATEWAY_CHAT_MODEL` / `AI_GATEWAY_FAST_MODEL` | – | โมเดลบน Gateway (ตีความ / ถามต่อ / วิเคราะห์คำถาม) — ถ้าแผนไม่มีสิทธิ์ใช้ ระบบจะไล่ลองตัวถัดไปอัตโนมัติ |
-| `ARCANA_REVERSAL_PROBABILITY` | – | โอกาสไพ่กลับหัว 0–1 (ค่าเริ่มต้น 0.35) |
-| `ARCANA_DAILY_READINGS` / `ARCANA_DAILY_FOLLOWUPS` | – | โควตาต่อ session ต่อ 24 ชม. (15 / 60) |
+
+ค่าที่ปรับได้ขณะรัน (โอกาสไพ่กลับหัว, โควตารายวัน, เครดิต, เปิด/ปิด spread, โมเดล AI, ราคาโมเดล, prompt addendum) อยู่ใน **Admin → ตั้งค่าระบบ** ไม่ใช่ environment variable
 
 ถ้ายังไม่ได้ตั้งค่า AI ระบบจะแสดง **Configuration Missing** — ไม่มีการสร้างคำทำนายปลอม
 
+## Admin
+
+เข้าที่ `/admin` ได้ 2 ทาง:
+
+1. **บัญชี Owner / Admin** — ล็อกอินที่ `/account` ด้วยอีเมลที่อยู่ใน `owner_emails` หรือ `admin_emails` (ตาราง `arcana_server_config`) Owner เป็นผู้เดียวที่แก้รายชื่อ Admin ได้
+2. **รหัสผู้ดูแลระบบ** (ระดับ Owner, ใช้เป็นทางสำรอง) — ค่า `ARCANA_ADMIN_KEY` ใน `.env.local`; ฐานข้อมูลเก็บเฉพาะ SHA-256 ที่ `admin_key_sha256` ล็อกหลังพยายามผิด 10 ครั้งใน 15 นาที
+
+สิทธิ์ถูกตัดสินใน SQL (`arcana_admin_role()`) ทุกคำขอ ทุกการเปลี่ยนแปลงของผู้ดูแลถูกบันทึกใน `arcana_audit_logs`
+
 ## ฐานข้อมูล
 
-รัน `supabase/migrations/0001_arcana_init.sql` แล้วบันทึก hash ของ server secret:
+รัน `supabase/migrations/0001_arcana_init.sql` และ `0002_arcana_admin_credits.sql` ตามลำดับ แล้วบันทึก hash ของ server secret (และ `admin_key_sha256`, `owner_emails` สำหรับ Admin):
 
 ```sql
 insert into public.arcana_server_config (key, value)

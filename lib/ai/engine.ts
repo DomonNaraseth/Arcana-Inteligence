@@ -107,6 +107,7 @@ export async function interpretReading(args: {
   analysis: QuestionAnalysis | null;
   spread: Spread;
   drawn: DrawnCard[];
+  addendum?: string;
 }): Promise<{ interpretation: Interpretation; usage: Usage; quality: QualityReport }> {
   const { system, user } = interpretationPrompt({
     ...args,
@@ -218,6 +219,7 @@ export async function answerFollowUp(args: {
   interpretation: Interpretation;
   history: ChatMessage[];
   message: string;
+  addendum?: string;
 }): Promise<{ reply: string; usage: Usage }> {
   const system = followUpSystem({
     question: args.question,
@@ -225,6 +227,7 @@ export async function answerFollowUp(args: {
     spread: args.spread,
     drawn: args.drawn,
     interpretationSummary: summarizeInterpretation(args.interpretation),
+    addendum: args.addendum,
   });
   // keep the conversation window bounded to control token cost
   const history = args.history.slice(-12);

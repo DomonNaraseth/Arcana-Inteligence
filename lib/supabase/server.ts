@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 export const GUEST_COOKIE = "arcana_key";
 export const GUEST_HEADER = "x-arcana-key";
 export const SERVER_HEADER = "x-arcana-server";
+export const ADMIN_COOKIE = "arcana_admin";
+export const ADMIN_HEADER = "x-arcana-admin";
 
 export function supabaseConfigured(): boolean {
   return Boolean(
@@ -33,6 +35,7 @@ export async function getContext(): Promise<RequestContext> {
   }
   const cookieStore = await cookies();
   const guestKey = cookieStore.get(GUEST_COOKIE)?.value;
+  const adminKey = cookieStore.get(ADMIN_COOKIE)?.value;
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -56,6 +59,8 @@ export async function getContext(): Promise<RequestContext> {
           // RLS rejects every arcana_* query without it
           [SERVER_HEADER]: process.env.ARCANA_SERVER_SECRET ?? "",
           ...(guestKey?.startsWith("g:") ? { [GUEST_HEADER]: guestKey } : {}),
+          // operator session (set by /api/admin/session); verified in SQL
+          ...(adminKey ? { [ADMIN_HEADER]: adminKey } : {}),
         },
       },
     },

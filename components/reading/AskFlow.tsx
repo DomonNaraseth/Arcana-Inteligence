@@ -73,7 +73,7 @@ export function AskFlow({
       setSpreadId(
         spreads.some((s) => s.id === data.analysis.recommended_spread)
           ? data.analysis.recommended_spread
-          : "general",
+          : (spreads.find((s) => s.id === "general") ?? spreads[0]).id,
       );
       setShowAll(false);
       setClarification("");
