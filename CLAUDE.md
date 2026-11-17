@@ -16,6 +16,8 @@ AI Tarot & Life Guidance platform. Thai-first UI. Read `docs/ARCHITECTURE.md` be
 
 9. **Read card and spread text from the effective knowledge base.** Anything shown to a user or sent to the AI uses `getKnowledge()` / `currentKnowledge()` (shipped defaults + admin overrides) and stores `kb.version`. Only structural code (`draw.ts`, `analysis.ts`) may read the static deck. Overrides may change text only — never ids, arcana, suit, element, card counts or position keys.
 
+10. **Payments: the browser decides nothing.** Price and credit amount come from server settings; success is established only by the provider (signed webhook or a server-side session lookup) and credits are granted only through `arcana_fulfill_payment()`, which re-checks session id, amount and currency and is idempotent. Never grant purchase credits any other way, and never fake a provider when keys are missing.
+
 ## Architecture conventions
 
 - Modular monolith. Business logic lives in `lib/` and never imports from `components/` or `app/`.

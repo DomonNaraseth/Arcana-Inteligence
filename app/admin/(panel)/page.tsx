@@ -6,6 +6,7 @@ import { DailyBars, type DailyPoint } from "@/components/admin/DailyBars";
 import { requireAdminPage } from "@/lib/admin";
 import { aiStatus } from "@/lib/ai/provider";
 import { CATEGORY_TH } from "@/lib/ai/schemas";
+import { billingStatus } from "@/lib/billing/provider";
 import { estimateCostUsd, getSettings } from "@/lib/settings";
 import { getKnowledge } from "@/lib/tarot/knowledge";
 
@@ -67,11 +68,12 @@ export default async function AdminOverviewPage({
   const requested = Number((await searchParams).days);
   const days = RANGES.includes(requested) ? requested : 30;
 
-  const [{ data, error }, settings, ai, kb] = await Promise.all([
+  const [{ data, error }, settings, ai, kb, revenue] = await Promise.all([
     admin.supabase.rpc("arcana_admin_overview", { p_days: days }),
     getSettings(admin.supabase, { fresh: true }),
     aiStatus(),
     getKnowledge(admin.supabase),
+    admin.supabase.rpc("arcana_admin_revenue", { p_days: days }),
   ]);
 
   if (error || !data) {
@@ -93,6 +95,16 @@ export default async function AdminOverviewPage({
     .filter((r) => r.feature === "interpret")
     .reduce((s, r) => s + r.calls, 0);
   const errorTotal = o.errors.reduce((s, e) => s + e.count, 0);
+
+  // revenue counts live payments only; test-mode payments move no money
+  const paid = (revenue.data as { paid?: { revenue_minor: number; test_revenue_minor: number; count: number; test_count: number; buyers: number } } | null)?.paid;
+  const revenueThb = paid ? (paid.revenue_minor - paid.test_revenue_minor) / 100 : 0;
+  const liveSales = paid ? paid.count - paid.test_count : 0;
+  const costThb = totalCost * settings.billing.usd_thb;
+  const grossProfitThb = revenueThb - costThb;
+  const thb = (n: number) =>
+    `${n < 0 ? "−" : ""}฿${Math.abs(n).toLocaleString("th-TH", { maximumFractionDigits: 2 })}`;
+  const billing = billingStatus();
 
   return (
     <div className="space-y-8">
@@ -168,7 +180,16 @@ export default async function AdminOverviewPage({
           }
         />
         <Tile label="ข้อผิดพลาดของระบบ" value={num(errorTotal)} sub="ดูรายละเอียดในบันทึกระบบ" />
-        <Tile label="รายได้" value="–" sub="ยังไม่ได้เชื่อมระบบชำระเงิน" />
+        <Tile
+          label="รายได้"
+          value={billing.configured || liveSales > 0 ? thb(revenueThb) : "–"}
+          sub={
+            !billing.configured && liveSales === 0
+              ? "ยังไม่ได้ตั้งค่าระบบชำระเงิน"
+              : `${num(liveSales)} รายการ · กำไรขั้นต้น ≈ ${thb(grossProfitThb)}` +
+                (o.period.users > 0 ? ` (${thb(grossProfitThb / o.period.users)}/ผู้ใช้)` : "")
+          }
+        />
       </section>
 
       <section className="panel p-6" aria-labelledby="daily-title">

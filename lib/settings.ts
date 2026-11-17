@@ -55,6 +55,12 @@ export const settingsSchemas = {
       }),
     )
     .max(12),
+  billing: z.object({
+    /** used only to express AI cost (USD) and revenue (THB) in one currency */
+    usd_thb: z.number().min(1).max(1000),
+    /** when true, only signed-in accounts may buy credits */
+    require_account: z.boolean(),
+  }),
 } as const;
 
 export type SettingKey = keyof typeof settingsSchemas;
@@ -100,6 +106,7 @@ export const DEFAULT_SETTINGS: Settings = {
     { id: "seeker", name: "Seeker", credits: 60, price_thb: 149 },
     { id: "oracle", name: "Oracle", credits: 150, price_thb: 299 },
   ],
+  billing: { usd_thb: 36, require_account: false },
 };
 
 export function parseSettings(raw: unknown): Settings {

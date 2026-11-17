@@ -53,5 +53,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|cards/|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"],
+  // the payment webhook is machine-to-machine: no guest cookie, no auth refresh
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|cards/|api/billing/webhook|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)",
+  ],
 };

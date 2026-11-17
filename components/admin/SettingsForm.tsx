@@ -146,6 +146,10 @@ export function SettingsForm({ initial, role, owners, admins, spreads, ai }: Pro
   const [probing, setProbing] = useState(false);
   const modelSaver = useSaver();
 
+  // ── billing ──
+  const [billing, setBilling] = useState(initial.billing);
+  const billingSaver = useSaver();
+
   // ── prices ──
   const [prices, setPrices] = useState(
     Object.entries(initial.model_prices).map(([model, p]) => ({ model, ...p })),
@@ -314,6 +318,44 @@ export function SettingsForm({ initial, role, owners, admins, spreads, ai }: Pro
               <Plus className="h-4 w-4" /> เพิ่มแพ็กเกจ
             </button>
           )}
+        </div>
+      </Section>
+
+      <Section
+        title="การชำระเงิน"
+        description="กุญแจของผู้ให้บริการชำระเงิน (Stripe) ตั้งใน Environment Variables ไม่ใช่ที่นี่ — ดูขั้นตอนและสถานะที่เมนู “การชำระเงิน”"
+        state={billingSaver.state}
+        onSave={() => billingSaver.saveSetting("billing", billing)}
+      >
+        <div className="grid gap-5 sm:grid-cols-2">
+          <label className="block">
+            <span className="text-sm text-ivory-dim">อัตราแลกเปลี่ยน USD → THB</span>
+            <input
+              type="number"
+              min={1}
+              step="0.01"
+              value={billing.usd_thb}
+              onChange={(e) => setBilling({ ...billing, usd_thb: Number(e.target.value) })}
+              className="field mt-1 py-2 text-sm tabular-nums"
+            />
+            <span className="mt-1 block text-xs text-ivory-dim">
+              ใช้แปลงต้นทุน AI (ดอลลาร์) เป็นบาทเพื่อประมาณกำไรขั้นต้นเท่านั้น
+            </span>
+          </label>
+          <label className="flex items-start gap-3 sm:pt-6">
+            <input
+              type="checkbox"
+              checked={billing.require_account}
+              onChange={(e) => setBilling({ ...billing, require_account: e.target.checked })}
+              className="mt-1 h-5 w-5 accent-[#C6A15B]"
+            />
+            <span>
+              <span className="block text-ivory">ต้องเข้าสู่ระบบก่อนซื้อเครดิต</span>
+              <span className="block text-xs text-ivory-dim">
+                ปิดไว้ = ผู้เยี่ยมชมซื้อได้ (เครดิตผูกกับเบราว์เซอร์ และย้ายเข้าบัญชีเมื่อเข้าสู่ระบบ)
+              </span>
+            </span>
+          </label>
         </div>
       </Section>
 

@@ -26,7 +26,8 @@
 | Admin dashboard `/admin` — RBAC (Owner / Admin), ภาพรวม + ต้นทุน AI, ผู้ใช้และเครดิต, ตั้งค่าระบบ, audit log + error log | ✅ |
 | ระบบเครดิต (หักหลังสำเร็จ, ไม่หักซ้ำ, เครดิตฟรีรายวันตามแพ็กเกจ) + แพ็กเกจสมาชิกแบบกำหนดมือ | ✅ (ปิดไว้เป็นค่าเริ่มต้น เปิดได้ใน Admin) |
 | แก้ความหมายไพ่ 78 ใบ และข้อความของ spread ผ่าน Admin → คลังความรู้ไพ่ (คืนค่าเริ่มต้นได้, มี audit log, ประทับเวอร์ชันกับคำอ่าน) | ✅ |
-| Payment gateway, Custom spread, แชร์ผล, เสียงอ่าน, Astrology/BaZi | ⏳ เฟสถัดไป (ดู docs/ARCHITECTURE.md) |
+| ซื้อเครดิตผ่าน Stripe Checkout (บัตร / PromptPay ตามที่เปิดใน Stripe) — webhook มีลายเซ็น, เพิ่มเครดิตแบบไม่ซ้ำ, หน้า Admin → การชำระเงิน | ✅ โค้ดพร้อม — ต้องใส่ `STRIPE_SECRET_KEY` ก่อนจึงใช้งานได้ |
+| Custom spread, แชร์ผล, เสียงอ่าน, คืนเงินอัตโนมัติ, Astrology/BaZi | ⏳ เฟสถัดไป (ดู docs/ARCHITECTURE.md) |
 
 ## Tech stack
 
@@ -57,6 +58,8 @@ npm run dev
 | `ANTHROPIC_MODEL` / `ANTHROPIC_FAST_MODEL` | – | ค่าเริ่มต้น `claude-sonnet-5-5` / `claude-haiku-5-5` |
 | `AI_GATEWAY_API_KEY` | – | ใช้ Vercel AI Gateway เมื่อไม่มี Anthropic key (บน Vercel ใช้ OIDC อัตโนมัติ) |
 | `AI_GATEWAY_MODEL` / `AI_GATEWAY_CHAT_MODEL` / `AI_GATEWAY_FAST_MODEL` | – | โมเดลบน Gateway (ตีความ / ถามต่อ / วิเคราะห์คำถาม) — ถ้าแผนไม่มีสิทธิ์ใช้ ระบบจะไล่ลองตัวถัดไปอัตโนมัติ |
+| `STRIPE_SECRET_KEY` | สำหรับขายเครดิต | `sk_test_…` (ทดสอบ) หรือ `sk_live_…` (จริง) — ไม่ตั้ง = ระบบชำระเงินปิด |
+| `STRIPE_WEBHOOK_SECRET` | แนะนำ | signing secret (`whsec_…`) ของ webhook ที่ชี้มา `/api/billing/webhook` |
 
 ค่าที่ปรับได้ขณะรัน (โอกาสไพ่กลับหัว, โควตารายวัน, เครดิต, เปิด/ปิด spread, โมเดล AI, ราคาโมเดล, prompt addendum) อยู่ใน **Admin → ตั้งค่าระบบ** ไม่ใช่ environment variable
 
@@ -71,9 +74,17 @@ npm run dev
 
 สิทธิ์ถูกตัดสินใน SQL (`arcana_admin_role()`) ทุกคำขอ ทุกการเปลี่ยนแปลงของผู้ดูแลถูกบันทึกใน `arcana_audit_logs`
 
+## การชำระเงิน (Stripe)
+
+1. สมัคร Stripe แล้วนำ secret key มาตั้งเป็น `STRIPE_SECRET_KEY` (เริ่มด้วย `sk_test_…` เพื่อทดสอบ)
+2. ใน Stripe → Developers → Webhooks สร้าง endpoint `https://<โดเมน>/api/billing/webhook` เลือก event: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired` แล้วนำ signing secret มาตั้งเป็น `STRIPE_WEBHOOK_SECRET`
+3. Redeploy แล้วเปิดระบบเครดิตและตรวจราคาแพ็กเกจที่ Admin → ตั้งค่าระบบ
+
+สถานะและขั้นตอนดูได้ที่ Admin → การชำระเงิน ทดสอบบนเครื่องโดยไม่ใช้ Stripe จริงได้ด้วย `node scripts/dev-mock-billing.mjs` (เปิดแอปที่พอร์ต 3001 คู่กับ gateway จำลอง)
+
 ## ฐานข้อมูล
 
-รัน `supabase/migrations/0001_arcana_init.sql`, `0002_arcana_admin_credits.sql` และ `0003_arcana_kb_overrides.sql` ตามลำดับ แล้วบันทึก hash ของ server secret (และ `admin_key_sha256`, `owner_emails` สำหรับ Admin):
+รัน `supabase/migrations/0001_arcana_init.sql`, `0002_arcana_admin_credits.sql`, `0003_arcana_kb_overrides.sql` และ `0004_arcana_payments.sql` ตามลำดับ แล้วบันทึก hash ของ server secret (และ `admin_key_sha256`, `owner_emails` สำหรับ Admin):
 
 ```sql
 insert into public.arcana_server_config (key, value)

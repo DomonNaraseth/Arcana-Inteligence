@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { AuthPanel } from "@/components/account/AuthPanel";
+import { BuyCredits } from "@/components/account/BuyCredits";
+import { PaymentReturn } from "@/components/account/PaymentReturn";
 import { aiStatus } from "@/lib/ai/provider";
+import { billingStatus, formatThb } from "@/lib/billing/provider";
+import type { PaymentRow } from "@/lib/billing/service";
 import { TIER_TH, getWallet } from "@/lib/credits";
 import { formatThaiDate } from "@/lib/format";
 import { getSettings } from "@/lib/settings";
@@ -23,7 +27,19 @@ const FEATURE_TH: Record<string, string> = {
   "followup+clarifier": "ถามต่อพร้อมไพ่เสริม",
 };
 
-export default async function AccountPage() {
+const PAYMENT_STATUS_TH: Record<string, string> = {
+  pending: "รอชำระเงิน",
+  paid: "ชำระแล้ว",
+  failed: "ไม่สำเร็จ",
+  expired: "หมดเวลา",
+  refunded: "คืนเงินแล้ว",
+};
+
+export default async function AccountPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ payment?: string; pid?: string }>;
+}) {
   const { supabase, user, isGuest } = await getContext();
 
   const [settings, wallet, role, readings, journals, usage, ai] = await Promise.all([
@@ -40,6 +56,12 @@ export default async function AccountPage() {
     aiStatus(),
   ]);
 
+  const billing = billingStatus();
+  const payments = settings.credits.enabled
+    ? (((await supabase.rpc("arcana_my_payments", { p_limit: 10 })).data ?? []) as PaymentRow[])
+    : [];
+  const { payment: paymentParam, pid } = await searchParams;
+
   const today = usage.data ?? [];
   const used = (f: string) => today.filter((u) => u.feature === f).length;
   const adminRole = role.data === "owner" || role.data === "admin" ? (role.data as string) : null;
@@ -49,6 +71,13 @@ export default async function AccountPage() {
     <div className="mx-auto max-w-3xl">
       <p className="eyebrow">My Profile</p>
       <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">บัญชีของฉัน</h1>
+
+      {(paymentParam === "success" || paymentParam === "cancelled") && (
+        <PaymentReturn
+          outcome={paymentParam}
+          paymentId={pid && /^[0-9a-f-]{36}$/i.test(pid) ? pid : null}
+        />
+      )}
 
       {adminRole && (
         <Link
@@ -167,21 +196,36 @@ export default async function AccountPage() {
           </p>
 
           {settings.packages.length > 0 && (
+            <BuyCredits
+              packages={settings.packages}
+              available={billing.configured}
+              testMode={billing.configured && !billing.livemode}
+              needsAccount={settings.billing.require_account && isGuest}
+              isGuest={isGuest}
+            />
+          )}
+
+          {payments.length > 0 && (
             <div className="mt-6">
-              <h3 className="text-sm font-medium text-gold">แพ็กเกจเติมเครดิต</h3>
-              <ul className="mt-3 grid gap-3 sm:grid-cols-3">
-                {settings.packages.map((p) => (
-                  <li key={p.id} className="rounded-xl border border-white/10 px-4 py-3">
-                    <p className="font-medium text-ivory">{p.name}</p>
-                    <p className="text-sm text-ivory-dim">
-                      {p.credits} เครดิต · {p.price_thb.toLocaleString("th-TH")} บาท
-                    </p>
+              <h3 className="text-sm font-medium text-gold">ประวัติการชำระเงิน</h3>
+              <ul className="mt-2 divide-y divide-white/5 text-sm">
+                {payments.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between gap-4 py-2.5">
+                    <span className="min-w-0">
+                      <span className="block truncate text-ivory">
+                        {p.package_name} · {p.credits} เครดิต
+                      </span>
+                      <span className="block text-xs text-ivory-dim">{formatThaiDate(p.created_at, true)}</span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className="block tabular-nums text-ivory">{formatThb(p.amount_minor)}</span>
+                      <span className={p.status === "paid" ? "text-xs text-gold-light" : "text-xs text-ivory-dim"}>
+                        {PAYMENT_STATUS_TH[p.status] ?? p.status}
+                      </span>
+                    </span>
                   </li>
                 ))}
               </ul>
-              <p className="mt-3 text-xs text-ivory-dim">
-                การซื้อเครดิตออนไลน์ยังไม่เปิดให้บริการ (ยังไม่ได้เชื่อมระบบชำระเงิน)
-              </p>
             </div>
           )}
 

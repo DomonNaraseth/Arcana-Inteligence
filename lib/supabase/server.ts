@@ -1,5 +1,5 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import type { SupabaseClient, User } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 export const GUEST_COOKIE = "arcana_key";
@@ -78,3 +78,22 @@ export async function getContext(): Promise<RequestContext> {
 }
 
 export class ConfigError extends Error {}
+
+/**
+ * Client for system work that has no user behind it (payment webhooks).
+ * It carries only the server credential, so it can call the SECURITY DEFINER
+ * functions that require arcana_is_server() and nothing that needs an owner.
+ */
+export function getSystemClient(): SupabaseClient {
+  if (!supabaseConfigured()) {
+    throw new ConfigError("Supabase is not configured");
+  }
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { [SERVER_HEADER]: process.env.ARCANA_SERVER_SECRET ?? "" } },
+    },
+  );
+}

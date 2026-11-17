@@ -14,6 +14,8 @@ export type ApiErrorCode =
   | "quality_failed"
   | "quota_exceeded"
   | "insufficient_credits"
+  | "billing_not_configured"
+  | "billing_unavailable"
   | "server_error";
 
 export function fail(code: ApiErrorCode, message: string, status: number) {
