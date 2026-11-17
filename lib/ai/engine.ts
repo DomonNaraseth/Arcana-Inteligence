@@ -112,10 +112,10 @@ export async function interpretReading(args: {
     ...args,
     todayIso: new Date().toISOString().slice(0, 10),
   });
-  // ~450 output tokens per card section + fixed sections; Thai is token-heavy
-  const maxTokens = Math.min(16000, 5000 + args.drawn.length * 700);
+  // Thai is token-heavy: budget generously so the JSON is never cut mid-object
+  const maxTokens = Math.min(24000, 9000 + args.drawn.length * 900);
 
-  const messages: ChatMessage[] = [{ role: "user", content: user }];
+  let messages: ChatMessage[] = [{ role: "user", content: user }];
   const results: GenerateResult[] = [];
   let lastIssues: string[] = [];
   let lastValid: Interpretation | null = null;
@@ -123,6 +123,18 @@ export async function interpretReading(args: {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const result = await generate({ tier: "deep", maxTokens, system, messages });
     results.push(result);
+
+    if (result.truncated) {
+      // a cut-off answer cannot be repaired — ask again, more concisely
+      lastIssues = ["คำอ่านยาวเกินขีดจำกัดจนถูกตัดกลางคัน"];
+      messages = [
+        {
+          role: "user",
+          content: `${user}\n\nข้อกำหนดเพิ่มเติม: คำตอบรอบก่อนยาวเกินจนถูกตัด ให้เขียนกระชับลงราว 35% (แต่ละช่องสั้นลง) โดยยังคงครบทุกหัวข้อและไพ่ทุกใบ`,
+        },
+      ];
+      continue;
+    }
 
     let issues: string[];
     let candidate: Interpretation | null = null;

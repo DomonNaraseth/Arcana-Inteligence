@@ -33,6 +33,8 @@ export interface GenerateResult {
   model: string;
   inputTokens: number;
   outputTokens: number;
+  /** true when the model stopped because it hit the output token limit */
+  truncated: boolean;
 }
 
 export class AiNotConfiguredError extends Error {
@@ -171,6 +173,7 @@ async function callAnthropic(
     content?: { type: string; text?: string }[];
     usage?: { input_tokens?: number; output_tokens?: number };
     model?: string;
+    stop_reason?: string;
   };
   const text = (data.content ?? [])
     .filter((b) => b.type === "text")
@@ -182,6 +185,7 @@ async function callAnthropic(
     model: data.model ?? model,
     inputTokens: data.usage?.input_tokens ?? 0,
     outputTokens: data.usage?.output_tokens ?? 0,
+    truncated: data.stop_reason === "max_tokens",
   };
 }
 
@@ -220,7 +224,7 @@ async function callGatewayModel(
     },
     body: JSON.stringify({
       model,
-      max_tokens: isReasoningModel(model) ? input.maxTokens + 4000 : input.maxTokens,
+      max_tokens: isReasoningModel(model) ? input.maxTokens + 6000 : input.maxTokens,
       ...(isReasoningModel(model) ? { reasoning_effort: "low" } : {}),
       messages: [{ role: "system", content: input.system }, ...input.messages],
     }),
@@ -230,7 +234,7 @@ async function callGatewayModel(
     throw new AiProviderError(`AI Gateway ${res.status}: ${body.slice(0, 300)}`, res.status);
   }
   const data = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
+    choices?: { message?: { content?: string }; finish_reason?: string }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number };
     model?: string;
   };
@@ -240,6 +244,7 @@ async function callGatewayModel(
     model: data.model ?? model,
     inputTokens: data.usage?.prompt_tokens ?? 0,
     outputTokens: data.usage?.completion_tokens ?? 0,
+    truncated: data.choices?.[0]?.finish_reason === "length",
   };
 }
 
