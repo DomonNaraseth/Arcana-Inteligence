@@ -17,6 +17,17 @@ export interface CheckoutInput {
   successUrl: string;
   cancelUrl: string;
   customerEmail?: string | null;
+  /**
+   * Unix seconds at which an unpaid checkout closes. Fixed by the caller so a
+   * retry with the same input sends identical parameters (the provider rejects
+   * an idempotency key reused with different ones).
+   */
+  expiresAt: number;
+}
+
+/** Just above Stripe's 30-minute minimum, so abandoned checkouts close quickly. */
+export function checkoutExpiry(nowMs = Date.now()): number {
+  return Math.floor(nowMs / 1000) + 31 * 60;
 }
 
 export interface CheckoutSession {

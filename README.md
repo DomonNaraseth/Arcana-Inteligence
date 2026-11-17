@@ -89,11 +89,23 @@ https://<โดเมนของแอป>/**
 
 ## การชำระเงิน (Stripe)
 
-1. สมัคร Stripe แล้วนำ secret key มาตั้งเป็น `STRIPE_SECRET_KEY` (เริ่มด้วย `sk_test_…` เพื่อทดสอบ)
+1. สมัคร Stripe แล้วสร้าง Restricted key ที่ให้สิทธิ์เฉพาะ Checkout Sessions (Write) นำมาตั้งเป็น `STRIPE_SECRET_KEY` แบบ Sensitive บน Vercel (เริ่มด้วย `rk_test_…` ของ sandbox เพื่อทดสอบ — ใช้ `sk_…` ได้เช่นกันแต่สิทธิ์กว้างกว่าที่จำเป็น)
 2. ใน Stripe → Developers → Webhooks สร้าง endpoint `https://<โดเมน>/api/billing/webhook` เลือก event: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired` แล้วนำ signing secret มาตั้งเป็น `STRIPE_WEBHOOK_SECRET`
 3. Redeploy แล้วเปิดระบบเครดิตและตรวจราคาแพ็กเกจที่ Admin → ตั้งค่าระบบ
 
 สถานะและขั้นตอนดูได้ที่ Admin → การชำระเงิน ทดสอบบนเครื่องโดยไม่ใช้ Stripe จริงได้ด้วย `node scripts/dev-mock-billing.mjs` (เปิดแอปที่พอร์ต 3001 คู่กับ gateway จำลอง)
+
+ทดสอบกับ Stripe sandbox จริงโดยไม่ต้องใส่ API key ในโปรเจกต์ (ใช้การล็อกอินของ Stripe CLI — `stripe login` แล้วเลือก sandbox; เครื่องมือทั้งสองจะไม่ทำงานถ้า CLI ไม่ได้อยู่ในโหมดทดสอบ):
+
+```bash
+node scripts/dev-stripe-sandbox.mjs
+```
+
+```bash
+STRIPE_SANDBOX=1 npx vitest run tests/integration
+```
+
+คำสั่งแรกเปิดแอปที่พอร์ต 3002 พร้อมหน้าชำระเงินและ webhook จริง (ต้องเปิดระบบเครดิตก่อน) คำสั่งที่สองทดสอบเฉพาะตัวเชื่อมต่อ Stripe โดยไม่แตะฐานข้อมูลของแอป บัตรทดสอบ: `4242 4242 4242 4242`
 
 ## ฐานข้อมูล
 

@@ -199,6 +199,13 @@ Not implemented: automatic refunds (refund in Stripe, then correct credits in Ad
 
 `scripts/dev-mock-billing.mjs` runs the app against an in-memory stand-in for the Stripe API (dev only — `STRIPE_API_BASE` is ignored in production).
 
+Stripe conventions the adapter follows: every request carries a pinned `Stripe-Version` (`STRIPE_API_VERSION` in `lib/billing/stripe.ts`); `payment_method_types` is never sent (methods come from the dashboard); the session's `expires_at` is fixed by the caller so a retry under the same idempotency key sends identical parameters; a restricted key (`rk_…`, Checkout Sessions: Write) is preferred over a secret key.
+
+Testing against a real Stripe sandbox, with no API key in the project — both tools relay API calls through the Stripe CLI's own login and refuse to run unless it is in test mode:
+
+- `node scripts/dev-stripe-sandbox.mjs` — the app on :3002 with real hosted checkout and real webhooks (`stripe listen`). Needs the credit system switched on.
+- `STRIPE_SANDBOX=1 npx vitest run tests/integration` — the adapter alone (create, idempotent retry, unknown session, real signed webhook); touches no application database. With `STRIPE_SANDBOX_PAY_FILE=<path>` it waits for the checkout to be paid with a test card and checks that session and its webhook.
+
 ## 7. Folder structure
 
 ```

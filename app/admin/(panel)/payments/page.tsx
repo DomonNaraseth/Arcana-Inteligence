@@ -118,8 +118,10 @@ export default async function AdminPaymentsPage() {
         <ol className="mt-5 space-y-3 text-sm">
           <Step done={status.configured}>
             ตั้งค่า <code className="font-mono text-gold-light">STRIPE_SECRET_KEY</code> ใน Environment Variables ของ
-            Vercel (ใช้ <code className="font-mono">sk_test_…</code> เพื่อทดสอบก่อน แล้วค่อยเปลี่ยนเป็น{" "}
-            <code className="font-mono">sk_live_…</code>)
+            Vercel แบบ Sensitive — แนะนำให้ใช้ Restricted key ที่ให้สิทธิ์เฉพาะ Checkout Sessions (Write):{" "}
+            <code className="font-mono">rk_test_…</code> เพื่อทดสอบก่อน แล้วค่อยเปลี่ยนเป็น{" "}
+            <code className="font-mono">rk_live_…</code> (ใช้ <code className="font-mono">sk_…</code> ได้เช่นกัน
+            แต่สิทธิ์กว้างกว่าที่ระบบนี้ต้องใช้)
           </Step>
           <Step done={status.webhookConfigured}>
             สร้าง Webhook endpoint ใน Stripe ชี้มาที่{" "}

@@ -16,6 +16,16 @@ import {
 
 const WEBHOOK_TOLERANCE_SECONDS = 300;
 
+/**
+ * Pinned so a change of the account's default API version cannot alter the
+ * shape of what this adapter sends or reads. Bump deliberately, then re-run
+ * the sandbox purchase test.
+ */
+export const STRIPE_API_VERSION = "2026-10-28.endive";
+
+/** Labels these sessions in the Stripe dashboard's checkout analytics. */
+const CHECKOUT_INTEGRATION_IDENTIFIER = "arcana-credits-qkzvhmtw";
+
 function apiBase(): string {
   // overridable only outside production, for the local mock gateway
   if (process.env.NODE_ENV !== "production" && process.env.STRIPE_API_BASE) {
@@ -138,6 +148,7 @@ export function createStripeProvider(secretKey: string, webhookSecret: string | 
       method,
       headers: {
         authorization: `Bearer ${secretKey}`,
+        "stripe-version": STRIPE_API_VERSION,
         ...(body ? { "content-type": "application/x-www-form-urlencoded" } : {}),
         ...(idempotencyKey ? { "idempotency-key": idempotencyKey } : {}),
       },
@@ -172,8 +183,8 @@ export function createStripeProvider(secretKey: string, webhookSecret: string | 
           client_reference_id: input.paymentId,
           customer_email: input.customerEmail || undefined,
           locale: "th",
-          // 31 minutes: just above Stripe's 30-minute minimum
-          expires_at: Math.floor(Date.now() / 1000) + 31 * 60,
+          integration_identifier: CHECKOUT_INTEGRATION_IDENTIFIER,
+          expires_at: input.expiresAt,
           metadata: { payment_id: input.paymentId, credits: input.credits },
           payment_intent_data: { metadata: { payment_id: input.paymentId } },
           line_items: [

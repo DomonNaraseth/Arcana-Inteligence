@@ -12,6 +12,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["scripts/dev-mock-billing.mjs"],
       "port": 3001
+    },
+    {
+      "name": "arcana-dev-stripe-sandbox",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev-stripe-sandbox.mjs"],
+      "port": 3002
     }
   ]
 }

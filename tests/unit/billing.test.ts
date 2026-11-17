@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { WebhookSignatureError, formatThb, toMinor } from "@/lib/billing/provider";
 import {
+  STRIPE_API_VERSION,
   createStripeProvider,
   encodeForm,
   mapStripeEvent,
@@ -145,6 +146,45 @@ describe("stripe provider", () => {
   it("detects test and live mode from the key", () => {
     expect(createStripeProvider("sk_test_x", null).livemode).toBe(false);
     expect(createStripeProvider("sk_live_x", null).livemode).toBe(true);
+  });
+
+  it("treats restricted keys the same way", () => {
+    expect(createStripeProvider("rk_test_x", null).livemode).toBe(false);
+    expect(createStripeProvider("rk_live_x", null).livemode).toBe(true);
+  });
+
+  it("pins the API version and leaves payment methods to the dashboard", async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ id: "cs_test_1", url: "https://checkout.stripe.com/c/pay/cs_test_1" }));
+    }) as typeof fetch;
+    try {
+      const out = await createStripeProvider("rk_test_x", null).createCheckout({
+        paymentId: "11111111-2222-3333-4444-555555555555",
+        packageName: "Starter",
+        credits: 20,
+        amountMinor: 5900,
+        currency: "thb",
+        successUrl: "https://example.test/ok",
+        cancelUrl: "https://example.test/no",
+        expiresAt: 1_800_000_000,
+      });
+      expect(out.sessionId).toBe("cs_test_1");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+    expect(calls).toHaveLength(1);
+    const headers = calls[0].init.headers as Record<string, string>;
+    expect(headers["stripe-version"]).toBe(STRIPE_API_VERSION);
+    expect(headers["idempotency-key"]).toBe("arcana-checkout-11111111-2222-3333-4444-555555555555");
+    const form = new URLSearchParams(String(calls[0].init.body));
+    expect(form.get("mode")).toBe("payment");
+    expect(form.get("integration_identifier")).toMatch(/^arcana-credits-[a-z]{8}$/);
+    expect(form.get("line_items[0][price_data][unit_amount]")).toBe("5900");
+    expect(form.get("expires_at")).toBe("1800000000");
+    expect([...form.keys()].some((k) => k.startsWith("payment_method_types"))).toBe(false);
   });
 
   it("refuses to parse webhooks when no signing secret is configured", () => {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { fail } from "@/lib/api";
-import { BillingProviderError, billingProvider, toMinor } from "@/lib/billing/provider";
+import { BillingProviderError, billingProvider, checkoutExpiry, toMinor } from "@/lib/billing/provider";
 import { getSettings } from "@/lib/settings";
 import { ConfigError, getContext } from "@/lib/supabase/server";
 
@@ -70,6 +70,7 @@ export async function POST(req: Request) {
       successUrl: `${origin}/account?payment=success&pid=${paymentId}`,
       cancelUrl: `${origin}/account?payment=cancelled`,
       customerEmail: user?.email ?? null,
+      expiresAt: checkoutExpiry(),
     });
 
     const attached = await supabase.rpc("arcana_attach_payment_session", {
