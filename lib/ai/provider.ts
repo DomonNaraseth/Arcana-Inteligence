@@ -57,8 +57,8 @@ function anthropicModel(tier: ModelTier): string {
 
 function gatewayModel(tier: ModelTier): string {
   return tier === "fast"
-    ? process.env.AI_GATEWAY_FAST_MODEL || "anthropic/claude-haiku-4.5"
-    : process.env.AI_GATEWAY_MODEL || "anthropic/claude-sonnet-4.5";
+    ? process.env.AI_GATEWAY_FAST_MODEL || "anthropic/claude-haiku-5.5"
+    : process.env.AI_GATEWAY_MODEL || "anthropic/claude-sonnet-5.5";
 }
 
 async function gatewayToken(): Promise<string | null> {
