@@ -55,10 +55,35 @@ function anthropicModel(tier: ModelTier): string {
     : process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
 }
 
-function gatewayModel(tier: ModelTier): string {
-  return tier === "fast"
-    ? process.env.AI_GATEWAY_FAST_MODEL || "anthropic/claude-haiku-5.5"
-    : process.env.AI_GATEWAY_MODEL || "anthropic/claude-sonnet-5.5";
+/**
+ * Gateway model candidates, best first. If the account has no access to a
+ * model (plan restriction, model retired) the next candidate is tried and the
+ * first one that works is remembered for the lifetime of the instance.
+ */
+const GATEWAY_FALLBACKS: Record<ModelTier, string[]> = {
+  deep: [
+    "anthropic/claude-sonnet-5.5",
+    "anthropic/claude-sonnet-5",
+    "anthropic/claude-sonnet-4.6",
+    "anthropic/claude-sonnet-4.5",
+    "anthropic/claude-haiku-4.5",
+  ],
+  fast: [
+    "anthropic/claude-haiku-5.5",
+    "anthropic/claude-haiku-4.5",
+    "anthropic/claude-sonnet-4.5",
+  ],
+};
+
+const workingGatewayModel: Partial<Record<ModelTier, string>> = {};
+
+function gatewayCandidates(tier: ModelTier): string[] {
+  const configured =
+    tier === "fast" ? process.env.AI_GATEWAY_FAST_MODEL : process.env.AI_GATEWAY_MODEL;
+  const list = [workingGatewayModel[tier], configured, ...GATEWAY_FALLBACKS[tier]].filter(
+    (m): m is string => Boolean(m),
+  );
+  return [...new Set(list)];
 }
 
 async function gatewayToken(): Promise<string | null> {
@@ -139,7 +164,28 @@ async function callGateway(
   tier: ModelTier,
   token: string,
 ): Promise<GenerateResult> {
-  const model = gatewayModel(tier);
+  let lastError: AiProviderError | null = null;
+  for (const model of gatewayCandidates(tier)) {
+    try {
+      const result = await callGatewayModel(input, model, token);
+      workingGatewayModel[tier] = model;
+      return result;
+    } catch (err) {
+      if (!(err instanceof AiProviderError)) throw err;
+      lastError = err;
+      // only an access/availability problem justifies trying another model
+      if (err.status !== 403 && err.status !== 404) throw err;
+      console.warn(`[arcana] gateway model ${model} unavailable (${err.status}), trying next`);
+    }
+  }
+  throw lastError ?? new AiProviderError("No AI Gateway model available");
+}
+
+async function callGatewayModel(
+  input: GenerateInput,
+  model: string,
+  token: string,
+): Promise<GenerateResult> {
   const res = await fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
     method: "POST",
     headers: {
