@@ -217,7 +217,7 @@ export async function answerFollowUp(args: {
   // keep the conversation window bounded to control token cost
   const history = args.history.slice(-12);
   const result = await generate({
-    tier: "deep",
+    tier: "chat",
     maxTokens: 1500,
     system,
     messages: [...history, { role: "user", content: args.message }],

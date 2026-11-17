@@ -53,7 +53,7 @@ npm run dev
 | `ANTHROPIC_API_KEY` | แนะนำ | ถ้าตั้งไว้จะเรียก Anthropic API โดยตรง (มาก่อน Gateway) |
 | `ANTHROPIC_MODEL` / `ANTHROPIC_FAST_MODEL` | – | ค่าเริ่มต้น `claude-sonnet-5-5` / `claude-haiku-5-5` |
 | `AI_GATEWAY_API_KEY` | – | ใช้ Vercel AI Gateway เมื่อไม่มี Anthropic key (บน Vercel ใช้ OIDC อัตโนมัติ) |
-| `AI_GATEWAY_MODEL` / `AI_GATEWAY_FAST_MODEL` | – | โมเดลบน Gateway |
+| `AI_GATEWAY_MODEL` / `AI_GATEWAY_CHAT_MODEL` / `AI_GATEWAY_FAST_MODEL` | – | โมเดลบน Gateway (ตีความ / ถามต่อ / วิเคราะห์คำถาม) — ถ้าแผนไม่มีสิทธิ์ใช้ ระบบจะไล่ลองตัวถัดไปอัตโนมัติ |
 | `ARCANA_REVERSAL_PROBABILITY` | – | โอกาสไพ่กลับหัว 0–1 (ค่าเริ่มต้น 0.35) |
 | `ARCANA_DAILY_READINGS` / `ARCANA_DAILY_FOLLOWUPS` | – | โควตาต่อ session ต่อ 24 ชม. (15 / 60) |
 

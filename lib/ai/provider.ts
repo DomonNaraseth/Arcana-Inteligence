@@ -12,7 +12,8 @@ import { headers } from "next/headers";
  *  3. neither                → AiNotConfiguredError (no fake readings, ever)
  */
 
-export type ModelTier = "deep" | "fast";
+/** deep = interpretation · chat = follow-up conversation · fast = classification */
+export type ModelTier = "deep" | "chat" | "fast";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -72,6 +73,16 @@ const GATEWAY_FALLBACKS: Record<ModelTier, string[]> = {
     "openai/gpt-5-mini",
     "google/gemini-2.5-flash",
   ],
+  chat: [
+    "anthropic/claude-sonnet-5.5",
+    "anthropic/claude-sonnet-5",
+    "anthropic/claude-sonnet-4.6",
+    "anthropic/claude-sonnet-4.5",
+    // interim fallbacks — non-reasoning models keep the conversation responsive
+    "openai/gpt-4.1",
+    "openai/gpt-5-mini",
+    "google/gemini-2.5-flash",
+  ],
   fast: [
     "anthropic/claude-haiku-5.5",
     "anthropic/claude-haiku-4.5",
@@ -90,7 +101,11 @@ const workingGatewayModel: Partial<Record<ModelTier, string>> = {};
 
 function gatewayCandidates(tier: ModelTier): string[] {
   const configured =
-    tier === "fast" ? process.env.AI_GATEWAY_FAST_MODEL : process.env.AI_GATEWAY_MODEL;
+    tier === "fast"
+      ? process.env.AI_GATEWAY_FAST_MODEL
+      : tier === "chat"
+        ? process.env.AI_GATEWAY_CHAT_MODEL || process.env.AI_GATEWAY_MODEL
+        : process.env.AI_GATEWAY_MODEL;
   const list = [workingGatewayModel[tier], configured, ...GATEWAY_FALLBACKS[tier]].filter(
     (m): m is string => Boolean(m),
   );
