@@ -67,13 +67,24 @@ const GATEWAY_FALLBACKS: Record<ModelTier, string[]> = {
     "anthropic/claude-sonnet-4.6",
     "anthropic/claude-sonnet-4.5",
     "anthropic/claude-haiku-4.5",
+    // interim fallbacks for gateway plans without Claude access
+    "openai/gpt-5",
+    "openai/gpt-5-mini",
+    "google/gemini-2.5-flash",
   ],
   fast: [
     "anthropic/claude-haiku-5.5",
     "anthropic/claude-haiku-4.5",
     "anthropic/claude-sonnet-4.5",
+    "openai/gpt-4.1-mini",
+    "google/gemini-2.5-flash",
   ],
 };
+
+/** Reasoning models spend part of max_tokens on hidden reasoning. */
+function isReasoningModel(model: string): boolean {
+  return model.startsWith("openai/gpt-5") || model.startsWith("openai/o");
+}
 
 const workingGatewayModel: Partial<Record<ModelTier, string>> = {};
 
@@ -194,7 +205,8 @@ async function callGatewayModel(
     },
     body: JSON.stringify({
       model,
-      max_tokens: input.maxTokens,
+      max_tokens: isReasoningModel(model) ? input.maxTokens + 4000 : input.maxTokens,
+      ...(isReasoningModel(model) ? { reasoning_effort: "low" } : {}),
       messages: [{ role: "system", content: input.system }, ...input.messages],
     }),
   });
