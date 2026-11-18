@@ -7,7 +7,11 @@ import { gatewayToken } from "../ai/provider";
  * There is no fallback picture: a failure is reported, never faked (rule 2).
  */
 
-/** FLUX.2 [pro] first: verified on this deployment's gateway (2026-11-19); gpt-image-2 was refused there. */
+/**
+ * FLUX.2 [pro] first: verified on this deployment's gateway (2026-11-19).
+ * gpt-image-2 answers 403 "Free tier users do not have access" until the
+ * team buys AI Gateway credits; it is kept as the fallback for that day.
+ */
 export const IMAGE_MODELS = ["bfl/flux-2-pro", "openai/gpt-image-2"] as const;
 
 export class OracleImageError extends Error {
@@ -62,7 +66,15 @@ export async function paint(prompt: string): Promise<{ bytes: Buffer; mime: "ima
   const errors: string[] = [];
   for (const model of candidates) {
     try {
-      const raw = await callModel(model, prompt, token);
+      let raw: Buffer;
+      try {
+        raw = await callModel(model, prompt, token);
+      } catch (err) {
+        // a busy provider (5xx) usually answers a few seconds later: one quiet retry
+        if (!(err instanceof OracleImageError) || err.reason !== "unavailable") throw err;
+        await new Promise((r) => setTimeout(r, 5000));
+        raw = await callModel(model, prompt, token);
+      }
       workingModel = model;
       const out = await toWebp(raw);
       if (out.bytes.length > 3 * 1024 * 1024) throw new OracleImageError(`${model}: picture too large`, "unavailable");
