@@ -61,8 +61,20 @@ export function readingNarration(args: {
   const byPosition = new Map(args.drawn.map((d) => [d.position, d]));
   const parts: NarrationPart[] = [
     { id: "direct", title: "คำตอบโดยตรง", text: join([data.title, "คำตอบโดยตรง.", data.direct_answer]) },
-    { id: "overall", title: "ภาพรวมสถานการณ์", text: join(["ภาพรวมสถานการณ์.", data.overall_situation]) },
   ];
+  if (data.examples?.length) {
+    parts.push({
+      id: "examples",
+      title: "ตัวอย่างที่ใกล้กับเรื่องของคุณ",
+      text: join([
+        "ตัวอย่างที่ใกล้กับเรื่องของคุณ.",
+        data.examples.map((e, i) => `ตัวอย่างที่ ${i + 1}. ${e.title}. ${e.example}`).join(" "),
+      ]),
+    });
+  }
+  parts.push(
+    { id: "overall", title: "ภาพรวมสถานการณ์", text: join(["ภาพรวมสถานการณ์.", data.overall_situation]) },
+  );
 
   for (const c of data.cards) {
     const d = byPosition.get(c.position);

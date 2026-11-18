@@ -125,6 +125,46 @@ export function InterpretationView({
         </p>
       </div>
 
+      {/* close-to-the-question examples (readings from prompt v2 on) */}
+      {data.examples && data.examples.length > 0 && (
+        <section
+          className="mt-5 rounded-2xl border border-white/10 bg-midnight/40 p-5 sm:p-6"
+          aria-labelledby="examples-title"
+          data-narration-part="examples"
+          data-reading={narration.reading === "examples" || undefined}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <h3 id="examples-title" className="pt-3 text-sm font-medium tracking-wide text-gold">
+              ตัวอย่างที่ใกล้กับเรื่องของคุณ
+            </h3>
+            <Listen id="examples" narration={narration} label="ตัวอย่างที่ใกล้กับเรื่องของคุณ" />
+          </div>
+          <ul className="mt-4 space-y-4">
+            {data.examples.map((e, i) => (
+              <li key={i} className="border-l-2 border-gold/40 pl-4">
+                <p className="font-medium text-gold-light">{e.title}</p>
+                <p className="mt-1 text-[15px] leading-[1.85] text-ivory/90">{e.example}</p>
+                <p className="mt-2 flex flex-wrap gap-1.5">
+                  {e.positions.map((p) => {
+                    const d = byPosition.get(p);
+                    if (!d) return null;
+                    const card = cardOf(d.cardId);
+                    return (
+                      <span key={p} className="chip px-2.5 py-0.5 text-xs">
+                        ใบที่ {p} · {card.nameTh}
+                      </span>
+                    );
+                  })}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 text-xs text-ivory-dim/80">
+            ตัวอย่างช่วยให้เห็นภาพว่าคำอ่านอาจปรากฏออกมาอย่างไรในเรื่องของคุณ ไม่ใช่การยืนยันว่าจะเกิดขึ้นแบบนี้
+          </p>
+        </section>
+      )}
+
       <div className="mt-8 space-y-7">
         <Section id="overall" n="02" title="ภาพรวมสถานการณ์" narration={narration}>
           <p>{data.overall_situation}</p>

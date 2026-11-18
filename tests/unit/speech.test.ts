@@ -81,6 +81,17 @@ describe("readingNarration", () => {
     expect(parts.find((p) => p.id === "opportunities")!.text).toBe("โอกาส. ข้อ 1. โอกาสหนึ่ง ข้อ 2. โอกาสสอง");
   });
 
+  it("reads the close examples right after the direct answer when the reading has them", () => {
+    const parts = readingNarration({
+      data: interpretation({ examples: [{ title: "ตอนคุยกัน", example: "อาจเริ่มจากข้อความสั้น ๆ", positions: [1] }] }),
+      drawn,
+      positions,
+      cardOf,
+    });
+    expect(parts.map((p) => p.id).slice(0, 3)).toEqual(["direct", "examples", "overall"]);
+    expect(parts[1].text).toContain("ตัวอย่างที่ 1. ตอนคุยกัน. อาจเริ่มจากข้อความสั้น ๆ");
+  });
+
   it("adds timeline and scenarios only when the reading has them", () => {
     const parts = readingNarration({
       data: interpretation({

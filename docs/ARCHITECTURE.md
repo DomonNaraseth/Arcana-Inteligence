@@ -48,7 +48,7 @@ Core principle: **the AI interprets, it does not own.** Randomization, the knowl
 | --- | --- |
 | L1 | Core persona & hard rules (`CORE_PERSONA`) — professional, direct, no fear, no guarantees |
 | L2 | Card knowledge for the drawn cards only, as structured JSON from the KB (orientation-specific meaning, keywords, domain meanings) |
-| L3 | Question context: original question + validated analysis |
+| L3 | Question context: original question + validated analysis + `answer_shape` (`ANSWER_SHAPE[intent]`: how the direct answer must open — a lean for yes/no, the person's own options for a decision, a time window + timeline for timing, a dynamic never a third party's thoughts for feelings, …) |
 | L4 | Spread & position context + per-spread interpretation strategy |
 | L5 | Ten-layer analysis method; element/suit/major/reversal counts are **computed in code** (`lib/tarot/analysis.ts`) and passed in |
 | L6 | Output contract (JSON) + self quality checklist |
@@ -58,7 +58,7 @@ User text is always passed as data inside the payload, with an explicit instruct
 ### Quality control
 
 1. Zod schema validation of the full interpretation.
-2. Code-level check: every drawn position present, `card_id` matches the draw, no extra cards.
+2. Code-level check: every drawn position present, `card_id` matches the draw, no extra cards. Since prompt v2 also: 2–3 `examples` (everyday scenes from the person's own situation, "what this could look like", never a forecast), each citing only drawn positions; `direct_answer` names at least one drawn card; a yes/no answer opens with โน้มไปทางใช่ / โน้มไปทางไม่ / ก้ำกึ่ง; a timing answer has a timeline. If a reading is delivered flagged, examples citing an undrawn card are dropped. Readings saved before v2 have no `examples`; the page and read-aloud skip the panel for them.
 3. Model self-report (`quality_check`) for: question answered, all cards used, positions respected, contradictions addressed, no over-claiming.
 4. On failure the issues are fed back and the model revises once. If card integrity still fails → `quality_failed` (nothing is shown or charged). If only soft self-reported issues remain → delivered with a visible notice.
 

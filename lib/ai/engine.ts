@@ -78,10 +78,28 @@ export interface QualityReport {
   issues: string[];
 }
 
-/** Code-level verification — never trusts the model's own self-report alone. */
-function verifyInterpretation(
+const normName = (s: string) => s.toLowerCase().replace(/^the\s+/, "").replace(/\s+/g, " ").trim();
+
+/** The answer names at least one drawn card, in English (with or without "The") or Thai. */
+export function citesDrawnCard(text: string, drawn: DrawnCard[], cardOf: CardLookup): boolean {
+  const hay = normName(text);
+  return drawn.some((d) => {
+    const c = cardOf(d.cardId);
+    return [c.name, c.nameTh].some((n) => n && hay.includes(normName(n)));
+  });
+}
+
+const YES_NO_LEANS = ["โน้มไปทางใช่", "โน้มไปทางไม่", "ก้ำกึ่ง"];
+
+/**
+ * Code-level verification — never trusts the model's own self-report alone.
+ * Card ids and positions first (rule 4), then that the answer has the shape
+ * the question asked for and every example rests on a card that was drawn.
+ */
+export function verifyInterpretation(
   data: Interpretation,
   drawn: DrawnCard[],
+  opts: { cardOf: CardLookup; intent?: QuestionAnalysis["intent"] | null },
 ): string[] {
   const issues: string[] = [];
   const byPos = new Map(data.cards.map((c) => [c.position, c]));
@@ -97,6 +115,28 @@ function verifyInterpretation(
   if (data.cards.length > drawn.length) {
     issues.push("คำอ่านมีไพ่เกินจากที่เปิดได้จริง");
   }
+
+  const positions = new Set(drawn.map((d) => d.position));
+  if (!data.examples?.length) {
+    issues.push("ยังไม่มีตัวอย่างที่ใกล้กับเรื่องของผู้ถาม (examples)");
+  } else {
+    for (const [i, ex] of data.examples.entries()) {
+      const unknown = ex.positions.filter((p) => !positions.has(p));
+      if (unknown.length) {
+        issues.push(`ตัวอย่างข้อ ${i + 1} อ้างไพ่ตำแหน่ง ${unknown.join(", ")} ซึ่งไม่ได้เปิด`);
+      }
+    }
+  }
+  if (!citesDrawnCard(data.direct_answer, drawn, opts.cardOf)) {
+    issues.push("คำตอบโดยตรงยังไม่ได้เอ่ยชื่อไพ่ที่รองรับ");
+  }
+  if (opts.intent === "yes_no" && !YES_NO_LEANS.some((l) => data.direct_answer.slice(0, 60).includes(l))) {
+    issues.push("คำถามใช่/ไม่ ต้องขึ้นต้นคำตอบด้วย โน้มไปทางใช่ / โน้มไปทางไม่ / ก้ำกึ่ง");
+  }
+  if (opts.intent === "timing" && !data.timeline?.length) {
+    issues.push("คำถามเรื่องจังหวะเวลา ต้องมี timeline");
+  }
+
   const qc = data.quality_check;
   if (!qc.answered_question) issues.push("ยังไม่ได้ตอบคำถามต้นฉบับ");
   if (!qc.all_cards_used) issues.push("ยังใช้ไพ่ไม่ครบทุกใบ");
@@ -151,7 +191,10 @@ export async function interpretReading(args: {
       const parsed = interpretationSchema.safeParse(extractJson(result.text));
       if (parsed.success) {
         candidate = parsed.data;
-        issues = verifyInterpretation(candidate, args.drawn);
+        issues = verifyInterpretation(candidate, args.drawn, {
+          cardOf: args.cardOf,
+          intent: args.analysis?.intent,
+        });
       } else {
         issues = parsed.error.issues
           .slice(0, 6)
@@ -180,8 +223,11 @@ export async function interpretReading(args: {
 
   // Structurally valid with only self-reported soft issues → deliver, flagged.
   if (lastValid && verifyCardsOnly(lastValid, args.drawn)) {
+    // an example that rests on a card that was never drawn is dropped, not shown
+    const drawnPositions = new Set(args.drawn.map((d) => d.position));
+    const examples = lastValid.examples?.filter((e) => e.positions.every((p) => drawnPositions.has(p)));
     return {
-      interpretation: lastValid,
+      interpretation: { ...lastValid, examples },
       usage: usageOf(results)!,
       quality: { passed: false, attempts: MAX_ATTEMPTS, issues: lastIssues },
     };
@@ -216,7 +262,10 @@ export function summarizeInterpretation(i: Interpretation): string {
     `คำแนะนำ: ${i.advice.join(" / ")}`,
     `ข้อควรระวัง: ${i.cautions.join(" / ")}`,
     `บทสรุป: ${i.conclusion}`,
-  ].join("\n");
+    i.examples?.length ? `ตัวอย่างที่ให้ไว้: ${i.examples.map((e) => `${e.title} — ${e.example}`).join(" / ")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export async function answerFollowUp(args: {

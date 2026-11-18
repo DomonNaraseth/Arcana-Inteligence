@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const PROMPT_VERSION = "arcana-2026.11-v1";
+export const PROMPT_VERSION = "arcana-2026.11-v2";
 
 export const CATEGORIES = [
   "general", "love", "relationship", "career", "finance", "business", "family",
@@ -78,6 +78,16 @@ export const interpretationSchema = z.object({
     .object({ if_act: text(800), if_wait: text(800) })
     .nullable(),
   conclusion: text(1500),
+  examples: z
+    .array(
+      z.object({
+        title: text(120),
+        example: text(700),
+        positions: z.array(z.number().int().min(1)).min(1).max(10),
+      }),
+    )
+    .min(1)
+    .max(3),
   follow_up_questions: z.array(text(200)).min(1).max(4),
   quality_check: z.object({
     answered_question: z.boolean(),
@@ -88,4 +98,12 @@ export const interpretationSchema = z.object({
   }),
 });
 
-export type Interpretation = z.infer<typeof interpretationSchema>;
+export type ReadingExample = z.infer<typeof interpretationSchema>["examples"][number];
+
+/**
+ * A saved reading. `examples` is required from every new answer but optional
+ * here: readings saved before prompt v2 do not have it.
+ */
+export type Interpretation = Omit<z.infer<typeof interpretationSchema>, "examples"> & {
+  examples?: ReadingExample[];
+};
