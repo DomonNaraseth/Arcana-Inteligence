@@ -234,7 +234,7 @@ export function OracleStudio({ initialDeck }: { initialDeck: OracleDeck }) {
       )}
 
       {/* tabs */}
-      <div role="tablist" aria-label="ส่วนของสำรับ" className="flex gap-1 overflow-x-auto border-b border-white/10">
+      <div role="tablist" aria-label="ส่วนของสำรับ" className="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-white/10">
         {(
           [
             ["cards", `ไพ่ ${deck.card_count} ใบ`],

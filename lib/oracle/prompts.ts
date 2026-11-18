@@ -83,7 +83,7 @@ ${GUIDANCE_RULES}
   "message": "สารถึงผู้ที่จั่วได้ไพ่ใบนี้ 3-5 ประโยค พูดกับ 'คุณ' โดยตรง พร้อมสิ่งเล็ก ๆ ที่ลองทำได้วันนี้",
   "affirmation": "ประโยคยืนยันพลังบวก 1 ประโยค ขึ้นต้นด้วย 'ฉัน'",
   "reflection": "คำถามชวนคิด 1 ข้อ",
-  "visual": "ENGLISH: the scene painted on this card — subject, action, setting, symbols, light — matching the deck's art direction and motifs; no text or lettering in the scene"
+  "visual": "ENGLISH: the scene painted on this card — subject, action, setting, symbols, light — matching the deck's art direction and motifs; describe only what is seen: never the card's name, no signs, books, banners, scrolls or anything with writing"
 } ] }
 - เขียนเฉพาะไพ่หมายเลข ${args.numbers.join(", ")} ครบทุกใบ ไม่เกินนี้
 - ให้แต่ละใบต่างจากใบอื่นในสำรับอย่างชัดเจน ทั้งเนื้อหาและภาพ`;
@@ -106,6 +106,9 @@ const IMAGE_RULES =
   "Keep the main subject within the upper three quarters; keep the lowest fifth calm and uncluttered (a title band is added later). " +
   "No gore, no nudity, nothing frightening.";
 
+/** Quoted words invite lettering ("a sign reading 'Rest'"): keep the words, drop the quotes. */
+const stripQuoted = (s: string) => s.replace(/["“”'‘’]/g, "");
+
 function styleBlock(concept: Partial<OracleConcept>): string {
   const s = concept.style;
   if (!s) return "";
@@ -117,14 +120,19 @@ function styleBlock(concept: Partial<OracleConcept>): string {
   ].join("\n");
 }
 
-/** Prompt for one picture: a card, the cover or the card back. Always in English, never asks for lettering. */
+/**
+ * Prompt for one picture: a card, the cover or the card back. Always in
+ * English, and it never contains a deck or card name: image models paint any
+ * name they are given as lettering (seen on production), and the site sets
+ * the Thai name in real type over the picture instead.
+ */
 export function imagePrompt(args: {
   title_en: string;
   concept: Partial<OracleConcept>;
   target: "card" | "cover" | "back";
   card?: Pick<OracleCard, "name_en" | "visual" | "essence">;
 }): string {
-  const head = `An illustration for the oracle card deck "${args.title_en}".`;
+  const head = "A wordless illustration for an oracle card deck. The image contains no writing of any kind.";
   const style = styleBlock(args.concept);
   if (args.target === "back") {
     return [
@@ -141,7 +149,7 @@ export function imagePrompt(args: {
   return [
     head,
     style,
-    `This card: "${args.card?.name_en ?? ""}". Scene: ${args.card?.visual || args.card?.essence || ""}`,
+    `Scene: ${stripQuoted(args.card?.visual || args.card?.essence || "")}`,
     "Same visual style, palette and level of detail as every other card in the deck.",
     IMAGE_RULES,
   ].join("\n\n");

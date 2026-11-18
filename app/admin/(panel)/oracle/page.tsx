@@ -89,7 +89,7 @@ export default async function AdminOraclePage() {
         <p className="font-medium text-ivory">ค่าใช้จ่ายโดยประมาณ</p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>คอนเซปและเนื้อหาไพ่ (Claude): ราว ฿1–2 ต่อไพ่ 8 ใบ</li>
-          <li>ภาพไพ่ (Vercel AI Gateway, openai/gpt-image-2): ราว ฿1.5–2 ต่อภาพ — สำรับ 44 ใบ + ปก + หลังไพ่ ราว ฿70–90</li>
+          <li>ภาพไพ่ (Vercel AI Gateway, FLUX.2 [pro]): ราว ฿1.5–2 ต่อภาพ — สำรับ 44 ใบ + ปก + หลังไพ่ ราว ฿70–90 (คิดจากเครดิต AI Gateway ของทีม Vercel)</li>
           <li>สร้างภาพใหม่ได้ทุกเมื่อ ภาพเก่าจะถูกแทนที่ (ไม่เก็บซ้ำ)</li>
         </ul>
       </aside>

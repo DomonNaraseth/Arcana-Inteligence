@@ -82,9 +82,17 @@ describe("oracle card texts", () => {
 describe("oracle image prompt", () => {
   const concept = { style };
 
-  it("never asks for lettering and keeps the deck style", () => {
-    const p = imagePrompt({ title_en: "Moon Within", concept, target: "card", card: { name_en: "Rest", visual: "a figure resting", essence: "" } });
+  it("never asks for lettering, never names the card or deck, and keeps the deck style", () => {
+    const p = imagePrompt({
+      title_en: "Moon Within",
+      concept,
+      target: "card",
+      card: { name_en: "Rain That Cleanses", visual: "a figure resting under 'Rain'", essence: "" },
+    });
     expect(p).toContain("no text, letters, numbers");
+    expect(p).not.toContain("Rain That Cleanses");
+    expect(p).not.toContain("Moon Within");
+    expect(p).not.toMatch(/['"“”]Rain/);
     expect(p).toContain("#C6A15B");
     expect(p).toContain("moon phases");
     expect(p).toContain("a figure resting");

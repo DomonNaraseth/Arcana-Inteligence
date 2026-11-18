@@ -7,7 +7,8 @@ import { gatewayToken } from "../ai/provider";
  * There is no fallback picture: a failure is reported, never faked (rule 2).
  */
 
-export const IMAGE_MODELS = ["openai/gpt-image-2", "bfl/flux-2-pro"] as const;
+/** FLUX.2 [pro] first: verified on this deployment's gateway (2026-11-19); gpt-image-2 was refused there. */
+export const IMAGE_MODELS = ["bfl/flux-2-pro", "openai/gpt-image-2"] as const;
 
 export class OracleImageError extends Error {
   constructor(
