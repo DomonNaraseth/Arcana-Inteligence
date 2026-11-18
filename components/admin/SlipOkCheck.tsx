@@ -24,6 +24,22 @@ function verdict(h: SlipOkHealth): { ok: boolean; text: string }[] {
   } else {
     lines.push({ ok: false, text: `SlipOK ตอบกลับ: ${h.code ?? ""} ${h.message ?? "ไม่ทราบสาเหตุ"}`.trim() });
   }
+  if (!h.connected && h.shape) {
+    const s = h.shape;
+    if (!s.branchDigitsOnly) {
+      lines.push({
+        ok: false,
+        text: `SLIPOK_BRANCH_ID ควรเป็นตัวเลขล้วน (ไอดีสาขา) แต่ค่าที่ตั้งไว้มีตัวอักษรหรือสัญลักษณ์ปน (ยาว ${s.branchLength} ตัว) — ตรวจว่าไม่ได้วาง API Key หรือ URL ลงในช่องนี้`,
+      });
+    } else if (s.keyLooksLikeBranch) {
+      lines.push({ ok: false, text: "SLIPOK_API_KEY เป็นตัวเลขล้วน — อาจสลับกับ SLIPOK_BRANCH_ID" });
+    } else {
+      lines.push({
+        ok: false,
+        text: `รูปแบบค่า: ไอดีสาขาเป็นตัวเลข ${s.branchLength} หลัก · API Key ยาว ${s.keyLength} ตัวอักษร — ตรวจว่าตรงกับหน้า API ของ SlipOK`,
+      });
+    }
+  }
   if (h.probe?.code === 1008 || h.probe?.code === 1007 || h.probe?.code === 1011) {
     lines.push({ ok: true, text: "ทดสอบส่งข้อมูลตัวอย่าง: SlipOK อ่านคำขอได้ถูกต้อง (ตอบว่าไม่ใช่สลิป ตามที่ควร)" });
   } else if (h.probe) {

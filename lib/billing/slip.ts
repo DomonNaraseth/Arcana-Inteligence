@@ -162,6 +162,17 @@ export interface SlipOkHealth {
   message?: string;
   /** what the service answers to a QR text that is not a slip — 1008 means requests reach it intact */
   probe?: { code?: number; message?: string };
+  /** the shape of the two settings, never their values — helps spot a swapped or mistyped one */
+  shape?: { branchDigitsOnly: boolean; branchLength: number; keyLength: number; keyLooksLikeBranch: boolean };
+}
+
+function shapeOf(branch: string, key: string): NonNullable<SlipOkHealth["shape"]> {
+  return {
+    branchDigitsOnly: /^\d+$/.test(branch),
+    branchLength: branch.length,
+    keyLength: key.length,
+    keyLooksLikeBranch: /^\d+$/.test(key),
+  };
 }
 
 /**
@@ -187,6 +198,7 @@ export async function slipOkHealth(): Promise<SlipOkHealth> {
       endDate: q?.data?.endDate ?? null,
       code: q?.code,
       message: q?.message,
+      shape: shapeOf(branch, key),
     };
     const p = await read(
       await fetch(base, {
@@ -199,7 +211,7 @@ export async function slipOkHealth(): Promise<SlipOkHealth> {
     health.probe = { code: p?.code, message: p?.message };
     return health;
   } catch (err) {
-    return { configured: true, connected: false, message: (err as Error).message };
+    return { configured: true, connected: false, message: (err as Error).message, shape: shapeOf(branch, key) };
   }
 }
 
