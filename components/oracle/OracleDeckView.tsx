@@ -116,20 +116,15 @@ export function OracleDeckView({ deck }: { deck: OracleDeck }) {
       {/* one card for you */}
       <section aria-labelledby="draw-title" className="panel-gold p-6 sm:p-10">
         <div className="grid items-center gap-10 md:grid-cols-[auto_1fr]">
-          <div className="card-scene mx-auto w-52 sm:w-60" aria-hidden={phase !== "revealed"}>
-            <div
-              className={clsx(
-                "relative aspect-[7/12] transition-transform duration-700 [transform-style:preserve-3d] motion-reduce:transition-none",
-                phase === "revealed" && "[transform:rotateY(180deg)]",
-              )}
-            >
-              <div className="absolute inset-0 [backface-visibility:hidden]">
-                <OracleCardBack image={deck.back_image} className={clsx(phase === "drawing" && "animate-pulse")} />
+          {/* the face turns in once drawn (no hidden-backface 3D: unreliable across browsers) */}
+          <div className="mx-auto w-52 sm:w-60">
+            {phase === "revealed" && drawn ? (
+              <div key={drawn.number} className="oracle-reveal">
+                <OracleCardFace image={drawn.image} name={drawn.name} nameEn={drawn.name_en} size="lg" priority />
               </div>
-              <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
-                {drawn && <OracleCardFace image={drawn.image} name={drawn.name} nameEn={drawn.name_en} size="lg" priority />}
-              </div>
-            </div>
+            ) : (
+              <OracleCardBack image={deck.back_image} className={clsx(phase === "drawing" && "animate-pulse")} />
+            )}
           </div>
 
           <div ref={result} className="scroll-mt-24">

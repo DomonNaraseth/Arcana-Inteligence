@@ -130,6 +130,25 @@
     transform: scaleY(1);
   }
 }
+/* an oracle card turning to show its face */
+.oracle-reveal {
+  animation: oracle-reveal 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes oracle-reveal {
+  from {
+    transform: perspective(1200px) rotateY(85deg) scale(0.96);
+    opacity: 0.3;
+  }
+  to {
+    transform: perspective(1200px) rotateY(0deg) scale(1);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .oracle-reveal {
+    animation: none;
+  }
+}
 /* the section being read: a gold bar in the margin beside it */
 [data-narration-part] {
   position: relative;
