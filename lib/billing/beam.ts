@@ -171,3 +171,128 @@ export function verifyBeamSignature(rawBody: string, signature: string | null, k
 
 /** How long a QR may be paid. Long enough to open a banking app, short enough that prices stay current. */
 export const QR_MINUTES = 15;
+
+// ── card payments: Beam's hosted checkout page (a payment link) ─────────────
+// Card details are typed on Beam's page, never on ours.
+
+/** How long a card checkout link stays payable. */
+export const CARD_LINK_MINUTES = 30;
+
+/** Request body for a single-use, card-only hosted checkout for one payment (satang). */
+export function paymentLinkBody(args: {
+  amountMinor: number;
+  referenceId: string;
+  description: string;
+  redirectUrl: string;
+  expiresAt: Date;
+}) {
+  return {
+    order: {
+      currency: "THB",
+      description: args.description.slice(0, 120),
+      netAmount: args.amountMinor,
+      referenceId: args.referenceId,
+      orderItems: [
+        {
+          itemName: args.description.slice(0, 80),
+          description: "ARCANA INTELLIGENCE",
+          price: args.amountMinor,
+          quantity: 1,
+          productId: args.referenceId.slice(0, 36),
+        },
+      ],
+    },
+    // only the methods named here are offered: cards (QR has its own flow on our page)
+    linkSettings: { card: { isEnabled: true } },
+    collectDeliveryAddress: false,
+    redirectUrl: args.redirectUrl,
+    cancelUrl: args.redirectUrl,
+    expiresAt: args.expiresAt.toISOString(),
+  };
+}
+
+export interface BeamLink {
+  id: string;
+  url: string;
+}
+
+/** The checkout must be an https page; plain http only for a local mock (dev builds only). */
+export function parseCreatedLink(json: unknown, allowLocalHttp = false): BeamLink | null {
+  const j = json as { id?: string; url?: string } | null;
+  if (!j?.id || !j.url) return null;
+  const ok = /^https:\/\//.test(j.url) || (allowLocalHttp && /^http:\/\/localhost(:\d+)?\//.test(j.url));
+  return ok ? { id: j.id, url: j.url } : null;
+}
+
+export interface BeamLinkStatus {
+  id: string;
+  status: "ACTIVE" | "PAID" | "EXPIRED" | "DISABLED" | string;
+  amount: number;
+  currency: string;
+  referenceId: string;
+}
+
+export function parsePaymentLink(json: unknown): BeamLinkStatus | null {
+  const j = json as {
+    paymentLinkId?: string;
+    status?: string;
+    order?: { netAmount?: number; currency?: string; referenceId?: string };
+  } | null;
+  if (!j?.paymentLinkId || !j.status || typeof j.order?.netAmount !== "number") return null;
+  return {
+    id: j.paymentLinkId,
+    status: j.status,
+    amount: j.order.netAmount,
+    currency: (j.order.currency ?? "").toUpperCase(),
+    referenceId: j.order.referenceId ?? "",
+  };
+}
+
+export async function createPaymentLink(
+  c: BeamConfig,
+  args: { amountMinor: number; referenceId: string; description: string; redirectUrl: string; expiresAt: Date },
+): Promise<BeamLink> {
+  let res: Response;
+  try {
+    res = await fetch(`${c.base}/api/v1/payment-links`, {
+      method: "POST",
+      headers: {
+        authorization: auth(c),
+        "content-type": "application/json",
+        // a retried request must not open a second link for the same attempt
+        "idempotency-key": `${args.referenceId}:${args.expiresAt.getTime()}`,
+      },
+      body: JSON.stringify(paymentLinkBody(args)),
+      cache: "no-store",
+    });
+  } catch (err) {
+    throw new BeamError(`beam unreachable: ${(err as Error).message}`);
+  }
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new BeamError(`beam create link HTTP ${res.status}: ${JSON.stringify(json)?.slice(0, 300)}`, res.status);
+  const link = parseCreatedLink(json, c.base.startsWith("http://localhost"));
+  if (!link) throw new BeamError("beam link answer unreadable");
+  return link;
+}
+
+/** Our own lookup of a payment link — the confirmation that counts. */
+export async function getPaymentLink(c: BeamConfig, linkId: string): Promise<BeamLinkStatus> {
+  if (!/^[A-Za-z0-9_-]{4,80}$/.test(linkId)) throw new BeamError("invalid link id");
+  let res: Response;
+  try {
+    res = await fetch(`${c.base}/api/v1/payment-links/${encodeURIComponent(linkId)}`, {
+      headers: { authorization: auth(c) },
+      cache: "no-store",
+    });
+  } catch (err) {
+    throw new BeamError(`beam unreachable: ${(err as Error).message}`);
+  }
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new BeamError(`beam get link HTTP ${res.status}`, res.status);
+  const link = parsePaymentLink(json);
+  if (!link) throw new BeamError("beam link answer unreadable");
+  return link;
+}
+
+/** Card links are recorded beside QR charges, told apart by this prefix. */
+export const LINK_PREFIX = "pl_";

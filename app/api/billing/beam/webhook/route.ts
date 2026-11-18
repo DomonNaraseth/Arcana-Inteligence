@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { BeamError, beamConfig, verifyBeamSignature } from "@/lib/billing/beam";
+import { BeamError, LINK_PREFIX, beamConfig, verifyBeamSignature } from "@/lib/billing/beam";
 import { settleCharge } from "@/lib/billing/gateway";
 import { formatThb } from "@/lib/billing/provider";
 import { notifyAdmin } from "@/lib/notify";
@@ -22,11 +22,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid signature" }, { status: 400 });
   }
   const event = req.headers.get("x-beam-event") ?? "";
-  if (event !== "charge.succeeded") return NextResponse.json({ received: true });
+  if (event !== "charge.succeeded" && event !== "payment_link.paid") return NextResponse.json({ received: true });
 
+  // a QR charge is recorded by its charge id; a card checkout by "pl_" + its link id
   let chargeId: string | undefined;
   try {
-    chargeId = (JSON.parse(raw) as { chargeId?: string }).chargeId;
+    const body = JSON.parse(raw) as { chargeId?: string; paymentLinkId?: string };
+    chargeId = event === "payment_link.paid" ? body.paymentLinkId && `${LINK_PREFIX}${body.paymentLinkId}` : body.chargeId;
   } catch {
     return NextResponse.json({ error: "invalid payload" }, { status: 400 });
   }
@@ -35,8 +37,10 @@ export async function POST(req: Request) {
   try {
     const result = await settleCharge(getSystemClient(), beam, chargeId);
     if (result.ok && (result.credited ?? 0) > 0) {
-      const amount = (JSON.parse(raw) as { amount?: number }).amount;
-      await notifyAdmin(`ARCANA: รับชำระ ${typeof amount === "number" ? formatThb(amount) : ""} ผ่าน QR อัตโนมัติ (Beam) — เพิ่มเครดิตแล้ว`);
+      const body = JSON.parse(raw) as { amount?: number; order?: { netAmount?: number } };
+      const amount = body.amount ?? body.order?.netAmount;
+      const via = event === "payment_link.paid" ? "บัตร" : "QR อัตโนมัติ";
+      await notifyAdmin(`ARCANA: รับชำระ ${typeof amount === "number" ? formatThb(amount) : ""} ผ่าน${via} (Beam) — เพิ่มเครดิตแล้ว`);
     }
     if (!result.ok && result.reason !== "unknown_charge") {
       console.warn("[arcana] beam webhook not granted:", chargeId, result.reason);

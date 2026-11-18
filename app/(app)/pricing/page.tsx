@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { Check, CreditCard, QrCode } from "lucide-react";
 import { BuyCredits } from "@/components/account/BuyCredits";
 import { GoogleSignInButton } from "@/components/account/GoogleSignInButton";
 import { ManageSubscriptionButton, SubscribeButton } from "@/components/account/MembershipActions";
@@ -48,9 +48,10 @@ export default async function PricingPage({
   const managed = Boolean(subscription?.active && subscription.source === "stripe" && subscription.manageable);
   // PromptPay, once set up, is the way to pay; the card checkout is the fallback
   // (the PromptPay route covers both an automatic gateway QR and a transfer to the owner's account)
+  const gatewayOn = Boolean(gatewayFor(role.data === "owner" || role.data === "admin"));
   const via: "promptpay" | "stripe" | null = !c.enabled
     ? null
-    : promptPayConfig(settings) || gatewayFor(role.data === "owner" || role.data === "admin")
+    : promptPayConfig(settings) || gatewayOn
       ? "promptpay"
       : cardOpen
         ? "stripe"
@@ -68,6 +69,23 @@ export default async function PricingPage({
           ไพ่ประจำวันเปิดได้ฟรีทุกวัน ส่วนการอ่านไพ่เชิงลึกตามคำถามของคุณใช้เครดิต —
           เครดิตถูกหักหลังได้คำอ่านสำเร็จเท่านั้น
         </p>
+        {canSell && (
+          <ul className="mt-4 flex flex-wrap gap-2 text-xs" aria-label="ช่องทางชำระเงิน">
+            {prepaid && (
+              <li className="chip">
+                <QrCode className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                QR พร้อมเพย์
+              </li>
+            )}
+            {(gatewayOn || via === "stripe") && (
+              <li className="chip">
+                <CreditCard className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                บัตรเครดิต / เดบิต
+              </li>
+            )}
+            {prepaid && gatewayOn && <li className="chip border-white/15 bg-transparent text-ivory-dim">เครดิตเข้าทันที ไม่ต้องส่งสลิป</li>}
+          </ul>
+        )}
       </header>
 
       {payment === "cancelled" && (
@@ -240,9 +258,11 @@ export default async function PricingPage({
           <div>
             <dt className="text-ivory">ชำระเงินปลอดภัยหรือไม่</dt>
             <dd className="mt-1">
-              {prepaid
-                ? "โอนผ่าน PromptPay จากแอปธนาคารของคุณเอง ARCANA ไม่ขอและไม่เก็บข้อมูลบัตรหรือรหัสผ่านธนาคาร สลิปถูกตรวจกับเครือข่ายธนาคารและไม่ถูกเก็บไว้"
-                : "ชำระบนหน้าของ Stripe โดยตรง ARCANA ไม่เห็นและไม่เก็บข้อมูลบัตรของคุณ"}
+              {prepaid && gatewayOn
+                ? "สแกน QR พร้อมเพย์จากแอปธนาคาร หรือชำระด้วยบัตรเครดิต/เดบิตบนหน้าชำระเงินของผู้ให้บริการ (Beam) ARCANA ไม่เห็นและไม่เก็บข้อมูลบัตร เครดิตเข้าอัตโนมัติทันทีที่ผู้ให้บริการยืนยัน ไม่ต้องส่งสลิป"
+                : prepaid
+                  ? "โอนผ่าน PromptPay จากแอปธนาคารของคุณเอง ARCANA ไม่ขอและไม่เก็บข้อมูลบัตรหรือรหัสผ่านธนาคาร สลิปถูกตรวจกับเครือข่ายธนาคารและไม่ถูกเก็บไว้"
+                  : "ชำระบนหน้าของ Stripe โดยตรง ARCANA ไม่เห็นและไม่เก็บข้อมูลบัตรของคุณ"}
             </dd>
           </div>
           <div>

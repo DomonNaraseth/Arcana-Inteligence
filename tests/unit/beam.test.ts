@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { parseCharge, parseQrCharge, qrChargeBody, verifyBeamSignature } from "@/lib/billing/beam";
+import {
+  parseCharge,
+  parseCreatedLink,
+  parsePaymentLink,
+  paymentLinkBody,
+  parseQrCharge,
+  qrChargeBody,
+  verifyBeamSignature,
+} from "@/lib/billing/beam";
 
 // test vector published in Beam's webhook-authentication guide
 const KEY = "KOFELguf5L1ltuDlkDHGUkPPnQhrgYYijTR4Fqh7APc=";
@@ -20,6 +28,48 @@ describe("Beam webhook signature", () => {
 
   it("is sensitive to formatting: the raw body must be used", () => {
     expect(verifyBeamSignature(JSON.stringify(JSON.parse(BODY), null, 2), SIGNATURE, KEY)).toBe(false);
+  });
+});
+
+describe("Beam card checkout (payment link)", () => {
+  const body = paymentLinkBody({
+    amountMinor: 29900,
+    referenceId: "5f0c0b6e-0000-4000-8000-000000000000",
+    description: "ARCANA · Premium (30 วัน)",
+    redirectUrl: "https://example.test/pay/x?via=card",
+    expiresAt: new Date("2026-11-19T10:30:00.000Z"),
+  });
+
+  it("asks for exactly the order's amount in satang, as one item, cards only", () => {
+    expect(body.order.netAmount).toBe(29900);
+    expect(body.order.currency).toBe("THB");
+    expect(body.order.orderItems).toEqual([expect.objectContaining({ price: 29900, quantity: 1 })]);
+    expect(body.order.orderItems.reduce((s, i) => s + i.price * i.quantity, 0)).toBe(body.order.netAmount);
+    expect(body.order.referenceId).toBe("5f0c0b6e-0000-4000-8000-000000000000");
+    expect(body.linkSettings).toEqual({ card: { isEnabled: true } });
+    expect(body.redirectUrl).toBe(body.cancelUrl);
+  });
+
+  it("reads the created link and refuses one without an https url", () => {
+    expect(parseCreatedLink({ id: "rGtqz6DafS", url: "https://pay.beamcheckout.com/m/rGtqz6DafS" })).toEqual({
+      id: "rGtqz6DafS",
+      url: "https://pay.beamcheckout.com/m/rGtqz6DafS",
+    });
+    expect(parseCreatedLink({ id: "x", url: "javascript:alert(1)" })).toBeNull();
+    expect(parseCreatedLink({ id: "x", url: "http://localhost:4010/checkout/x" })).toBeNull();
+    expect(parseCreatedLink({ id: "x", url: "http://localhost:4010/checkout/x" }, true)?.id).toBe("x");
+    expect(parseCreatedLink({ id: "x", url: "http://evil.test/x" }, true)).toBeNull();
+  });
+
+  it("reads a link's status, amount and reference as Beam documents them", () => {
+    expect(
+      parsePaymentLink({
+        paymentLinkId: "rGtqz6DafS",
+        status: "PAID",
+        order: { netAmount: 3000000, currency: "thb", referenceId: "order#10001" },
+      }),
+    ).toEqual({ id: "rGtqz6DafS", status: "PAID", amount: 3000000, currency: "THB", referenceId: "order#10001" });
+    expect(parsePaymentLink({ paymentLinkId: "x", status: "PAID" })).toBeNull();
   });
 });
 

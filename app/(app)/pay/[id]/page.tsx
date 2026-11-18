@@ -32,8 +32,15 @@ interface MyPayment {
   created_at: string;
 }
 
-export default async function PayPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PayPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ via?: string }>;
+}) {
   const { id } = await params;
+  const { via } = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
 
   const { supabase } = await getContext();
@@ -78,16 +85,25 @@ export default async function PayPage({ params }: { params: Promise<{ id: string
       </header>
 
       {payment.status === "paid" ? (
-        <section className="panel-gold p-6">
-          <p role="status" className="flex items-start gap-3 text-ivory">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-gold" aria-hidden="true" />
-            <span>
-              รายการนี้ชำระเงินแล้ว — {payment.credits} เครดิตอยู่ในกระเป๋าของคุณ
-            </span>
-          </p>
-          <Link href="/ask" className="btn-gold mt-5">
-            เริ่มถามไพ่
-          </Link>
+        <section className="panel-gold p-6 sm:p-8" role="status">
+          <div className="flex items-start gap-4">
+            <CheckCircle2 className="mt-0.5 h-8 w-8 shrink-0 text-gold" aria-hidden="true" />
+            <div>
+              <h2 className="text-2xl font-semibold">ชำระเงินสำเร็จ</h2>
+              <p className="mt-2 text-ivory">
+                {payment.package_name} · <strong>{payment.credits} เครดิต</strong> อยู่ในกระเป๋าของคุณแล้ว
+              </p>
+              <p className="mt-1 text-sm text-ivory-dim">ขอบคุณที่ใช้ ARCANA — เริ่มถามไพ่ได้เลย</p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link href="/ask" className="btn-gold">
+                  เริ่มถามไพ่
+                </Link>
+                <Link href="/account" className="btn-ghost px-5 py-2.5 text-sm">
+                  ดูบัญชีของฉัน
+                </Link>
+              </div>
+            </div>
+          </div>
         </section>
       ) : payment.status !== "pending" ? (
         <section className="panel p-6">
@@ -103,6 +119,7 @@ export default async function PayPage({ params }: { params: Promise<{ id: string
           initialExpiresAt={auto.expiresAt}
           amountLabel={amount}
           credits={payment.credits}
+          initialMethod={via === "card" ? "card" : "qr"}
         />
       ) : !config || !qr ? (
         <section className="panel border-amber-400/40 p-6 text-amber-100">
