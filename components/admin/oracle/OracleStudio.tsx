@@ -273,7 +273,7 @@ export function OracleStudio({ initialDeck }: { initialDeck: OracleDeck }) {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
-            <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 xl:grid-cols-5" aria-label="ไพ่ในสำรับ">
+            <ul className="grid content-start grid-cols-3 gap-3 self-start sm:grid-cols-4 xl:grid-cols-5" aria-label="ไพ่ในสำรับ">
               {deck.cards.map((c) => (
                 <li key={c.number}>
                   <button
