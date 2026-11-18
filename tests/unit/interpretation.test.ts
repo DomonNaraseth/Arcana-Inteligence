@@ -133,9 +133,10 @@ describe("answer shape", () => {
     expect(system).toContain('"examples"');
   });
 
-  it("requires examples from every new answer", () => {
+  it("lets an answer without examples through the schema, so the code check (retry, then notice) decides", () => {
     const { examples: _drop, ...rest } = reading();
-    expect(interpretationSchema.safeParse(rest).success).toBe(false);
+    expect(interpretationSchema.safeParse(rest).success).toBe(true);
+    expect(check(rest as Interpretation).join()).toContain("examples");
     expect(interpretationSchema.safeParse(reading()).success).toBe(true);
   });
 });

@@ -87,7 +87,11 @@ export const interpretationSchema = z.object({
       }),
     )
     .min(1)
-    .max(3),
+    .max(3)
+    // asked of every new answer and enforced by verifyInterpretation (one
+    // retry, then delivered with a notice) — a missing example must never sink
+    // the whole reading. Readings saved before prompt v2 do not have it.
+    .optional(),
   follow_up_questions: z.array(text(200)).min(1).max(4),
   quality_check: z.object({
     answered_question: z.boolean(),
@@ -98,12 +102,5 @@ export const interpretationSchema = z.object({
   }),
 });
 
-export type ReadingExample = z.infer<typeof interpretationSchema>["examples"][number];
-
-/**
- * A saved reading. `examples` is required from every new answer but optional
- * here: readings saved before prompt v2 do not have it.
- */
-export type Interpretation = Omit<z.infer<typeof interpretationSchema>, "examples"> & {
-  examples?: ReadingExample[];
-};
+export type Interpretation = z.infer<typeof interpretationSchema>;
+export type ReadingExample = NonNullable<Interpretation["examples"]>[number];
