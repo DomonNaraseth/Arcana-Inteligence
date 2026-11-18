@@ -10,6 +10,8 @@ import { CardBack } from "@/components/tarot/CardBack";
 import { TarotCardView } from "@/components/tarot/TarotCardView";
 import type { DailyMessage } from "@/lib/ai/daily";
 import { ShareDaily } from "./ShareDaily";
+import { ListenButton } from "@/components/speech/ListenButton";
+import { dailyNarration } from "@/lib/speech/narration";
 import type { Orientation, TarotCard } from "@/lib/tarot/types";
 
 interface Revealed {
@@ -163,8 +165,19 @@ export function DailyRitual({
 
       <div className="space-y-6">
         {result && (
-          <section className="panel p-6 sm:p-8" aria-labelledby="daily-message-title">
-            <p className="eyebrow">Message of the day</p>
+          <section
+            className="panel p-6 sm:p-8"
+            aria-labelledby="daily-message-title"
+            data-narration-part="daily"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <p className="eyebrow">Message of the day</p>
+              <ListenButton
+                parts={[dailyNarration({ card: result.card, orientation: result.orientation, message: result.message })]}
+                scope="daily"
+                label="สารประจำวัน"
+              />
+            </div>
             {result.message ? (
               <>
                 <h2 id="daily-message-title" className="mt-3 text-2xl font-semibold">

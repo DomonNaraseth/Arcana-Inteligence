@@ -302,6 +302,13 @@ Migration: `supabase/migrations/0008_arcana_growth.sql`. Code: `lib/tracking.ts`
 - **Offline:** `public/sw.js` caches nothing the app shows (every request goes to the network, so deployments show at once); it only answers a failed page navigation with `public/offline.html`. Registered in production builds only; served with `no-cache`.
 - **Install invitation:** `components/shell/InstallApp.tsx` on Home and Account — the browser's install prompt on Android/Chrome, two-step instructions on iPhone/iPad Safari; hidden once installed, and for 14 days after it is dismissed.
 
+## 6i. Read aloud
+
+- **Engine:** the browser's own speech synthesis (`speechSynthesis`, `th-TH`, an installed Thai voice preferred). Free, no server call, no extra AI cost, and the text is exactly what the page shows — nothing new is generated for the voice.
+- **What is read:** `lib/speech/narration.ts` (pure, tested) turns a saved interpretation into ordered parts in page order — direct answer first, each card with its position and orientation, then every section to the conclusion. The daily card reads its message of the day, or the knowledge-base meaning when there is none. Follow-up answers read as they are.
+- **Controls:** "ฟังคำอ่านทั้งหมด" at the top of a reading, a "ฟัง" button on every section and card, and a floating player (`components/speech/NarrationPlayer.tsx`, in the app layout) with pause, previous/next section, speed (ช้า/ปกติ/เร็ว, remembered per browser) and close. The part being read gets a gold bar and is scrolled into view; folded cards open.
+- **Engine quirks handled in `components/speech/narrator.ts`:** text is spoken in ≤180-character chunks (some engines stop on long utterances), pause cancels and resumes from the chunk (pause is unreliable on several engines), speech starts only from a tap (iOS), and stops on navigation or when the page is hidden. Where there is no speech engine the button explains it; where no Thai voice is installed it says where to add one.
+
 ## 7. Folder structure
 
 ```

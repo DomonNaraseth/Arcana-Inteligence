@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { AppNav } from "@/components/shell/AppNav";
 import { AuthNotice } from "@/components/shell/AuthNotice";
+import { NarrationPlayer } from "@/components/speech/NarrationPlayer";
 import { getContext, supabaseConfigured } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       )}
       <main className="mx-auto max-w-6xl px-[max(1.25rem,env(safe-area-inset-left))] py-6 sm:py-10 lg:py-12">{children}</main>
+      <NarrationPlayer />
       <footer className="mx-auto max-w-6xl px-5 pb-10 text-center text-xs text-ivory-dim/60">
         ไพ่ทาโรต์เป็นเครื่องมือเชิงสัญลักษณ์เพื่อการสะท้อนคิด ไม่ใช่การพยากรณ์ที่รับประกันผล
         และไม่ทดแทนคำแนะนำจากผู้เชี่ยวชาญด้านการแพทย์ กฎหมาย หรือการเงิน

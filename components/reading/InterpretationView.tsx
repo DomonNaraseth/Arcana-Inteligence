@@ -1,25 +1,56 @@
+"use client";
+
+import { useMemo } from "react";
 import { AlertTriangle, Compass, Eye, Lightbulb, Mountain, ShieldAlert, Sprout } from "lucide-react";
 import type { Interpretation } from "@/lib/ai/schemas";
+import { readingNarration, type NarrationPart } from "@/lib/speech/narration";
 import type { DrawnCard, SpreadPosition, TarotCard } from "@/lib/tarot/types";
+import { ListenAll } from "@/components/speech/ListenAll";
+import { ListenButton } from "@/components/speech/ListenButton";
+import { useNarrator } from "@/components/speech/narrator";
+
+/** Read-aloud wiring shared by every section of one reading. */
+interface Narration {
+  parts: NarrationPart[];
+  /** id of the part being read right now, if any */
+  reading: string | null;
+}
+
+function Listen({ id, narration, label }: { id: string; narration: Narration; label: string }) {
+  const part = narration.parts.find((p) => p.id === id);
+  if (!part) return null;
+  return <ListenButton parts={[part]} scope={`reading:${id}`} label={label} />;
+}
 
 function Section({
+  id,
   n,
   title,
   icon: Icon,
+  narration,
   children,
 }: {
+  id: string;
   n: string;
   title: string;
   icon?: React.ComponentType<{ className?: string }>;
+  narration: Narration;
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-t border-white/10 pt-7">
-      <h3 className="flex items-center gap-3 text-xl font-semibold text-ivory">
-        <span className="font-serif text-sm text-gold">{n}</span>
-        {Icon && <Icon className="h-5 w-5 text-gold" aria-hidden="true" />}
-        {title}
-      </h3>
+    <section
+      className="border-t border-white/10 pt-7"
+      data-narration-part={id}
+      data-reading={narration.reading === id || undefined}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="flex items-center gap-3 pt-2 text-xl font-semibold text-ivory">
+          <span className="font-serif text-sm text-gold">{n}</span>
+          {Icon && <Icon className="h-5 w-5 text-gold" aria-hidden="true" />}
+          {title}
+        </h3>
+        <Listen id={id} narration={narration} label={`หัวข้อ${title}`} />
+      </div>
       <div className="mt-3 text-[15.5px] leading-[1.9] text-ivory/90">{children}</div>
     </section>
   );
@@ -52,6 +83,15 @@ export function InterpretationView({
   cardOf: (id: string) => TarotCard;
 }) {
   const byPosition = new Map(drawn.map((d) => [d.position, d]));
+  const parts = useMemo(
+    () => readingNarration({ data, drawn, positions, cardOf }),
+    [data, drawn, positions, cardOf],
+  );
+  const n = useNarrator();
+  const narration: Narration = {
+    parts,
+    reading: n.status !== "idle" && n.scope?.startsWith("reading:") ? n.partId : null,
+  };
 
   return (
     <article className="panel p-6 sm:p-10" aria-labelledby="reading-title">
@@ -63,35 +103,61 @@ export function InterpretationView({
         <p className="mt-4">
           <span className="chip px-4 py-1.5 text-sm">{data.tendency}</span>
         </p>
+        <div className="mt-6 print:hidden">
+          <ListenAll parts={parts} scope="reading:all" />
+        </div>
       </header>
 
       {/* 01 direct answer — always first */}
-      <div className="mt-8 rounded-2xl border border-gold/40 bg-gold/[0.07] p-6">
-        <h3 className="flex items-center gap-3 text-sm font-medium tracking-wide text-gold">
-          <span className="font-serif">01</span> คำตอบโดยตรง
-        </h3>
+      <div
+        className="mt-8 rounded-2xl border border-gold/40 bg-gold/[0.07] p-6"
+        data-narration-part="direct"
+        data-reading={narration.reading === "direct" || undefined}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="flex items-center gap-3 pt-3 text-sm font-medium tracking-wide text-gold">
+            <span className="font-serif">01</span> คำตอบโดยตรง
+          </h3>
+          <Listen id="direct" narration={narration} label="คำตอบโดยตรง" />
+        </div>
         <p className="mt-3 font-serif text-xl leading-[1.8] text-ivory sm:text-[22px]">
           {data.direct_answer}
         </p>
       </div>
 
       <div className="mt-8 space-y-7">
-        <Section n="02" title="ภาพรวมสถานการณ์">
+        <Section id="overall" n="02" title="ภาพรวมสถานการณ์" narration={narration}>
           <p>{data.overall_situation}</p>
         </Section>
 
-        <Section n="03" title="ไพ่แต่ละใบในตำแหน่งของมัน">
-          <div className="space-y-3">
+        <section className="border-t border-white/10 pt-7">
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="flex items-center gap-3 pt-2 text-xl font-semibold text-ivory">
+              <span className="font-serif text-sm text-gold">03</span>
+              ไพ่แต่ละใบในตำแหน่งของมัน
+            </h3>
+            {data.cards.length > 1 && (
+              <ListenButton
+                parts={parts.filter((p) => p.id.startsWith("card-"))}
+                scope="reading:cards"
+                label="ความหมายไพ่ทุกใบ"
+              />
+            )}
+          </div>
+          <div className="mt-3 space-y-3 text-[15.5px] leading-[1.9] text-ivory/90">
             {data.cards.map((c) => {
               const d = byPosition.get(c.position);
               // card ids were verified against the draw before the reading was saved
               const card = d ? cardOf(d.cardId) : undefined;
               const pos = positions[c.position - 1];
+              const id = `card-${c.position}`;
               return (
                 <details
                   key={c.position}
                   className="group rounded-xl border border-white/10 bg-midnight/40 open:border-gold/30"
                   open={data.cards.length <= 5}
+                  data-narration-part={id}
+                  data-reading={narration.reading === id || undefined}
                 >
                   <summary className="flex cursor-pointer list-none items-start gap-3 p-4 [&::-webkit-details-marker]:hidden">
                     <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/50 font-serif text-sm text-gold">
@@ -111,16 +177,23 @@ export function InterpretationView({
                       ▾
                     </span>
                   </summary>
-                  <p className="border-t border-white/10 px-4 pb-4 pt-3 text-[15px] text-ivory/90">
-                    {c.interpretation}
-                  </p>
+                  <div className="border-t border-white/10 px-4 pb-4 pt-3">
+                    <p className="text-[15px] text-ivory/90">{c.interpretation}</p>
+                    <div className="mt-3 flex justify-end">
+                      <Listen
+                        id={id}
+                        narration={narration}
+                        label={`ไพ่ใบที่ ${c.position}${card ? ` ${card.nameTh}` : ""}`}
+                      />
+                    </div>
+                  </div>
                 </details>
               );
             })}
           </div>
-        </Section>
+        </section>
 
-        <Section n="04" title="ความสัมพันธ์ระหว่างไพ่">
+        <Section id="relationships" n="04" title="ความสัมพันธ์ระหว่างไพ่" narration={narration}>
           <p>{data.card_relationships}</p>
           <p className="mt-4 rounded-xl border border-white/10 bg-midnight/40 p-4 text-sm text-ivory-dim">
             <span className="text-gold">พลังงานโดยรวม — </span>
@@ -128,23 +201,23 @@ export function InterpretationView({
           </p>
         </Section>
 
-        <Section n="05" title="สิ่งที่ซ่อนอยู่" icon={Eye}>
+        <Section id="hidden" n="05" title="สิ่งที่ซ่อนอยู่" icon={Eye} narration={narration}>
           <p>{data.hidden_factors}</p>
         </Section>
 
-        <Section n="06" title="โอกาส" icon={Sprout}>
+        <Section id="opportunities" n="06" title="โอกาส" icon={Sprout} narration={narration}>
           <Bullets items={data.opportunities} />
         </Section>
 
-        <Section n="07" title="อุปสรรค" icon={Mountain}>
+        <Section id="obstacles" n="07" title="อุปสรรค" icon={Mountain} narration={narration}>
           <Bullets items={data.obstacles} />
         </Section>
 
-        <Section n="08" title="แนวโน้มข้างหน้า" icon={Compass}>
+        <Section id="future" n="08" title="แนวโน้มข้างหน้า" icon={Compass} narration={narration}>
           <p>{data.future_direction}</p>
         </Section>
 
-        <Section n="09" title="คำแนะนำ" icon={Lightbulb}>
+        <Section id="advice" n="09" title="คำแนะนำ" icon={Lightbulb} narration={narration}>
           <ol className="space-y-3">
             {data.advice.map((a, i) => (
               <li key={i} className="flex gap-3">
@@ -157,12 +230,12 @@ export function InterpretationView({
           </ol>
         </Section>
 
-        <Section n="10" title="สิ่งที่ควรระวัง" icon={ShieldAlert}>
+        <Section id="cautions" n="10" title="สิ่งที่ควรระวัง" icon={ShieldAlert} narration={narration}>
           <Bullets items={data.cautions} />
         </Section>
 
         {data.timeline && data.timeline.length > 0 && (
-          <Section n="11" title="แนวโน้มตามช่วงเวลา">
+          <Section id="timeline" n="11" title="แนวโน้มตามช่วงเวลา" narration={narration}>
             <ol className="relative ml-2 space-y-5 border-l border-gold/30 pl-6">
               {data.timeline.map((t, i) => (
                 <li key={i} className="relative">
@@ -179,7 +252,12 @@ export function InterpretationView({
         )}
 
         {data.alternative_scenarios && (
-          <Section n={data.timeline?.length ? "12" : "11"} title="ถ้าเลือกทำ หรือเลือกรอ">
+          <Section
+            id="scenarios"
+            n={data.timeline?.length ? "12" : "11"}
+            title="ถ้าเลือกทำ หรือเลือกรอ"
+            narration={narration}
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl border border-white/10 bg-midnight/40 p-4">
                 <p className="text-sm font-medium text-gold">หากลงมือ</p>
@@ -193,8 +271,15 @@ export function InterpretationView({
           </Section>
         )}
 
-        <section className="rounded-2xl border border-gold/30 bg-gradient-to-b from-navy-light/60 to-transparent p-6">
-          <h3 className="text-sm font-medium tracking-wide text-gold">บทสรุปจากไพ่</h3>
+        <section
+          className="rounded-2xl border border-gold/30 bg-gradient-to-b from-navy-light/60 to-transparent p-6"
+          data-narration-part="conclusion"
+          data-reading={narration.reading === "conclusion" || undefined}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="pt-3 text-sm font-medium tracking-wide text-gold">บทสรุปจากไพ่</h3>
+            <Listen id="conclusion" narration={narration} label="บทสรุปจากไพ่" />
+          </div>
           <p className="mt-3 font-serif text-lg leading-[1.85] text-ivory">{data.conclusion}</p>
         </section>
 

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Layers, Loader2, Send } from "lucide-react";
 import type { MessageRow } from "@/lib/data/readings";
 import type { DrawnCard, TarotCard } from "@/lib/tarot/types";
+import { speechText } from "@/lib/speech/narration";
+import { ListenButton } from "@/components/speech/ListenButton";
 
 interface ChatItem {
   id: string;
@@ -129,6 +131,15 @@ export function FollowUpChat({
                   </span>
                 )}
                 <p className="whitespace-pre-wrap text-[15px] leading-[1.85]">{displayText(m)}</p>
+                {m.role === "assistant" && (
+                  <div className="-mb-1 mt-2 flex justify-end">
+                    <ListenButton
+                      parts={[{ id: `chat-${m.id}`, title: "คำตอบจาก ARCANA", text: speechText(m.content) }]}
+                      scope={`chat:${m.id}`}
+                      label="คำตอบนี้"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           ))}

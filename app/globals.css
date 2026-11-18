@@ -92,6 +92,10 @@
   .chip {
     @apply inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs text-gold-light;
   }
+  /* read-aloud player controls: 44px touch targets */
+  .player-btn {
+    @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-ivory-dim transition-colors hover:bg-white/10 hover:text-ivory focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-gold disabled:opacity-30 disabled:hover:bg-transparent;
+  }
   .divider-ornament {
     @apply flex items-center gap-4 text-gold/60;
   }
@@ -100,6 +104,49 @@
     content: "";
     @apply h-px flex-1 bg-gradient-to-r from-transparent via-gold/40 to-transparent;
   }
+}
+
+/* read aloud: three bars that bounce while speaking */
+.sound-bars > span {
+  width: 2px;
+  height: 100%;
+  border-radius: 1px;
+  background: currentColor;
+  transform-origin: bottom;
+  animation: sound-bar 0.9s ease-in-out infinite;
+}
+.sound-bars > span:nth-child(2) {
+  animation-delay: -0.3s;
+}
+.sound-bars > span:nth-child(3) {
+  animation-delay: -0.6s;
+}
+@keyframes sound-bar {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+/* the section being read: a gold bar in the margin beside it */
+[data-narration-part] {
+  position: relative;
+  scroll-margin-top: 5.5rem;
+}
+[data-narration-part][data-reading="true"] {
+  border-color: rgb(198 161 91 / 0.55);
+}
+[data-narration-part][data-reading="true"]::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  width: 3px;
+  border-radius: 2px;
+  background: #c6a15b;
 }
 
 /* bottom sheet (native <dialog>): slide up from the edge */
