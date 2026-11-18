@@ -7,7 +7,7 @@ import type { Device, Touch } from "../tracking";
  */
 export async function recordEvent(
   supabase: SupabaseClient,
-  event: "page_view" | "out_of_credits",
+  event: "page_view" | "out_of_credits" | "share",
   path: string,
   extra: { touch?: Touch | null; device?: Device | null } = {},
 ): Promise<void> {

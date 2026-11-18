@@ -22,12 +22,14 @@ interface Funnel {
     revenue_minor: number;
   }[];
   top_pages: { path: string; visitors: number }[];
+  shares: { channel: string; shares: number; people: number }[];
   quality: { people: number; without_source: number; direct: number };
 }
 
 const STEP_TH: Record<string, string> = {
   visitors: "ผู้เข้าชมเว็บ",
   daily: "เปิดไพ่ประจำวัน",
+  share: "แชร์ไพ่ประจำวัน",
   signups: "สมัครสมาชิกใหม่",
   readers: "เริ่มอ่านไพ่ (เปิดไพ่ตามคำถาม)",
   interpreted: "ได้คำอ่านจาก AI",
@@ -55,6 +57,16 @@ const PAGE_TH: Record<string, string> = {
   "/terms": "ข้อตกลง",
   "/reading/[id]": "หน้าผลการอ่านไพ่",
   "/pay/[id]": "หน้าชำระเงิน",
+  "/share/daily": "หน้าไพ่ที่มีคนแชร์มา",
+};
+
+const CHANNEL_TH: Record<string, string> = {
+  native: "แชร์จากมือถือ",
+  line: "LINE",
+  facebook: "Facebook",
+  x: "X",
+  copy: "คัดลอกลิงก์",
+  download: "บันทึกรูป",
 };
 
 const PERIODS = [7, 30, 90];
@@ -215,6 +227,13 @@ export default async function AdminGrowthPage({ searchParams }: { searchParams: 
               <h2 id="pages-title" className="text-xl font-semibold">
                 หน้าที่มีคนเข้ามากที่สุด
               </h2>
+              {funnel.shares.length > 0 && (
+                <p className="mt-2 text-sm text-ivory-dim">
+                  แชร์ไพ่ประจำวัน:{" "}
+                  {funnel.shares.map((s) => `${CHANNEL_TH[s.channel] ?? s.channel} ${s.shares}`).join(" · ")}
+                  {" "}— คนที่เข้ามาจากลิงก์ที่แชร์จะอยู่ในตารางช่องทางเป็น medium &quot;share&quot;
+                </p>
+              )}
               {funnel.top_pages.length === 0 ? (
                 <p className="mt-4 text-sm text-ivory-dim">ยังไม่มีข้อมูล</p>
               ) : (

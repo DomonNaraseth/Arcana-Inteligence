@@ -26,6 +26,7 @@ const SIMPLE_PATHS = new Set([
   "/pricing",
   "/account",
   "/terms",
+  "/share/daily",
 ]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

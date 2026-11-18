@@ -290,6 +290,8 @@ Migration: `supabase/migrations/0008_arcana_growth.sql`. Code: `lib/tracking.ts`
 
 **SEO:** `app/sitemap.ts` (5 public pages + 78 card pages from the static deck), `app/robots.ts` (private pages disallowed), `metadataBase` from `siteUrl()`, a default share image (`app/opengraph-image.tsx`, Latin text only — the image font has no Thai), per-card titles, descriptions, canonical links and the card image as preview, and a call to action on every card page. Search Console verification: set `GOOGLE_SITE_VERIFICATION` (HTML-tag token); query and ranking data are not pulled into the admin.
 
+**Sharing the daily card** (migration 0009): after the reveal, "แชร์ไพ่วันนี้" opens the phone's share sheet with a story image (1080×1920), or offers LINE, Facebook, X, copy link and download. The image (`app/share/daily/image`, `format=story|og`) and the public page `/share/daily?c=&o=&d=` show only the card, its orientation, the day and that day's shared message for the card (`arcana_daily_message_for()`) — nothing about the person sharing. Links carry `utm_medium=share&utm_campaign=daily-card`; share clicks are `share` events by channel. Thai text in images uses Noto Sans Thai fetched from Google Fonts at render time (subset to the characters used), with zero-width spaces between words so lines can wrap.
+
 **Renewal reminder:** prepaid memberships show a banner on home and account from 5 days before the end until 7 days after (`renewalNotice()`); recurring and admin-set memberships do not.
 
 ## 7. Folder structure

@@ -28,6 +28,7 @@ export default async function DailyPage() {
       ? {
           card: todayCard,
           orientation: state.today.orientation,
+          day: state.day,
           message: await getDailyMessage(supabase, {
             cardId: todayCard.id,
             orientation: state.today.orientation,

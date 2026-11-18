@@ -9,12 +9,15 @@ import { Flame, Gift, Loader2, Sparkles } from "lucide-react";
 import { CardBack } from "@/components/tarot/CardBack";
 import { TarotCardView } from "@/components/tarot/TarotCardView";
 import type { DailyMessage } from "@/lib/ai/daily";
+import { ShareDaily } from "./ShareDaily";
 import type { Orientation, TarotCard } from "@/lib/tarot/types";
 
 interface Revealed {
   card: TarotCard;
   orientation: Orientation;
   message: DailyMessage | null;
+  /** YYYY-MM-DD, Bangkok */
+  day: string;
 }
 
 export interface RecentDaily {
@@ -68,7 +71,7 @@ export function DailyRitual({
     if (!res.ok || !data?.card) {
       throw new Error(data?.error?.message ?? "เปิดไพ่ประจำวันไม่สำเร็จ กรุณาลองใหม่");
     }
-    setResult({ card: data.card, orientation: data.orientation, message: data.message ?? null });
+    setResult({ card: data.card, orientation: data.orientation, message: data.message ?? null, day: data.day });
     setStreak(data.streak ?? 0);
     if (data.reward > 0) setReward(data.reward);
     if (data.isNew) router.refresh();
@@ -219,6 +222,10 @@ export function DailyRitual({
                 ความหมายเต็มของไพ่ใบนี้
               </Link>
             </div>
+            <ShareDaily
+              shared={{ cardId: result.card.id, orientation: result.orientation, day: result.day }}
+              cardName={result.card.name}
+            />
           </section>
         )}
 
