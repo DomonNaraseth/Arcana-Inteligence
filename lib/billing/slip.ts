@@ -102,22 +102,33 @@ export function slipOkFailure(code: number | undefined): SlipFailure {
   return "unavailable";
 }
 
+/**
+ * The request body SlipOK documents for an image sent as JSON: the image as
+ * plain base64 in `files`, `log` and `amount` as real boolean and number.
+ * (A multipart upload is silently dropped when the part's filename has no
+ * image extension, and the service then answers 1000 "no QR data".)
+ */
+export function slipOkBody(image: Uint8Array, expectedAmountMinor: number) {
+  return {
+    files: Buffer.from(image).toString("base64"),
+    // makes the service check the recipient against the account registered with it
+    log: true,
+    amount: expectedAmountMinor / 100,
+  };
+}
+
 function createSlipOkVerifier(branchId: string, apiKey: string): SlipVerifier {
   return {
     id: "slipok",
-    async verify(file, filename, expectedAmountMinor) {
-      const form = new FormData();
-      form.append("files", file, filename);
-      // log=true makes the service check the recipient against the account registered with it
-      form.append("log", "true");
-      form.append("amount", String(expectedAmountMinor / 100));
+    async verify(file, _filename, expectedAmountMinor) {
+      const body = slipOkBody(new Uint8Array(await file.arrayBuffer()), expectedAmountMinor);
 
       let res: Response;
       try {
         res = await fetch(`https://api.slipok.com/api/line/apikey/${encodeURIComponent(branchId)}`, {
           method: "POST",
-          headers: { "x-authorization": apiKey },
-          body: form,
+          headers: { "x-authorization": apiKey, "content-type": "application/json" },
+          body: JSON.stringify(body),
         });
       } catch (err) {
         throw new SlipError("unavailable", `slip service unreachable: ${(err as Error).message}`);

@@ -6,7 +6,7 @@ import {
   promptPayPayload,
 } from "@/lib/billing/promptpay";
 import { planLabel } from "@/lib/billing/service";
-import { checkSlip, mapSlipOkData, slipOkFailure, type SlipResult } from "@/lib/billing/slip";
+import { checkSlip, mapSlipOkData, slipOkBody, slipOkFailure, type SlipResult } from "@/lib/billing/slip";
 import { DEFAULT_SETTINGS, settingsSchemas } from "@/lib/settings";
 
 describe("PromptPay QR", () => {
@@ -66,6 +66,12 @@ describe("PromptPay QR", () => {
 });
 
 describe("slip verification", () => {
+  it("sends SlipOK the image as plain base64 with a real boolean log and a baht amount", () => {
+    const body = slipOkBody(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), 9900);
+    expect(body).toEqual({ files: "iVBORw==", log: true, amount: 99 });
+    expect(JSON.parse(JSON.stringify(body)).log).toBe(true);
+  });
+
   // field names and example values from the SlipOK check-slip documentation
   const data = {
     success: true,
