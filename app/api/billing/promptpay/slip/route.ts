@@ -71,7 +71,24 @@ export async function POST(req: Request) {
       verified = await verifier.verify(slip, "slip", row.amount_minor);
     } catch (err) {
       if (err instanceof SlipError) {
-        if (err.reason === "unavailable") console.error("[arcana] slip verification failed:", err.message);
+        if (err.reason === "unavailable" || err.reason === "setup") {
+          console.error("[arcana] slip verification failed:", err.message);
+        }
+        if (err.reason === "setup") {
+          // our SlipOK setup is refused, not the slip: report the transfer for the
+          // owner to check by hand, so the customer has nothing more to do (grants nothing)
+          const { data: claimed } = await supabase.rpc("arcana_claim_promptpay", {
+            p_id: paymentId,
+            p_note: "ส่งสลิปแล้ว — ระบบตรวจสลิปอัตโนมัติยังไม่พร้อม (ตรวจยอดในแอปธนาคาร)",
+          });
+          if (claimed) {
+            await notifyAdmin(`ARCANA: ลูกค้าส่งสลิป ${formatThb(row.amount_minor)} (${row.package_name}) แต่ SlipOK ยังตั้งค่าไม่ถูก — รอคุณตรวจยอดใน Admin`);
+          }
+          return NextResponse.json(
+            { error: { code: "billing_unavailable", message: SLIP_FAILURE_TH.setup, reason: "setup", claimed: Boolean(claimed) } },
+            { status: 503 },
+          );
+        }
         return reject(err.reason, err.reason === "unavailable" ? 502 : 422);
       }
       throw err;

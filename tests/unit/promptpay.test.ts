@@ -115,8 +115,11 @@ describe("slip verification", () => {
     expect(slipOkFailure(1007)).toBe("unreadable");
     expect(slipOkFailure(1011)).toBe("unreadable");
     // our own setup problems are never blamed on the customer's slip
-    expect(slipOkFailure(1002)).toBe("unavailable");
-    expect(slipOkFailure(1004)).toBe("unavailable");
+    // (1000–1004, 1015: branch id, key, package or quota) and never called "temporary"
+    expect(slipOkFailure(1000)).toBe("setup");
+    expect(slipOkFailure(1002)).toBe("setup");
+    expect(slipOkFailure(1004)).toBe("setup");
+    expect(slipOkFailure(1015)).toBe("setup");
     expect(slipOkFailure(undefined)).toBe("unavailable");
   });
 

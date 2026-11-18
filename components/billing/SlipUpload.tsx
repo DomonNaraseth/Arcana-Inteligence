@@ -71,6 +71,12 @@ export function SlipUpload({
           setRetryIn(BANK_DELAY_SECONDS);
           return;
         }
+        // automatic checking is not ready: the transfer was reported to the owner for us
+        if (data?.error?.reason === "setup" && data.error.claimed) {
+          setView({ state: "claimed" });
+          router.refresh();
+          return;
+        }
         // offer the manual route whenever the automatic one did not work
         setShowClaim(true);
         throw new Error(data?.error?.message ?? "ตรวจสลิปไม่สำเร็จ กรุณาลองใหม่");

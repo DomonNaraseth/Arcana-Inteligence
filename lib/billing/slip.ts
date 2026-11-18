@@ -22,6 +22,8 @@ export type SlipFailure =
   | "slip_used"
   | "slip_too_old"
   | "bank_delay"
+  /** our own SlipOK setup is refused (branch id, key, package, quota) — not the customer's fault */
+  | "setup"
   | "unavailable";
 
 export class SlipError extends Error {
@@ -40,6 +42,8 @@ export const SLIP_FAILURE_TH: Record<SlipFailure, string> = {
   slip_used: "สลิปนี้ถูกใช้ไปแล้ว หนึ่งสลิปใช้ได้กับหนึ่งรายการเท่านั้น",
   slip_too_old: "สลิปนี้เป็นการโอนก่อนสร้างรายการนี้ กรุณาใช้สลิปของการโอนครั้งนี้",
   bank_delay: "ธนาคารยังไม่ส่งข้อมูลการโอนนี้เข้าระบบ กรุณารอสักครู่แล้วลองอีกครั้ง",
+  setup:
+    "ระบบตรวจสลิปอัตโนมัติยังไม่พร้อมใช้งาน — สลิปของคุณไม่มีปัญหา กรุณากด “แจ้งโอนแล้ว” ด้านล่าง ผู้ดูแลจะตรวจยอดและเพิ่มเครดิตให้",
   unavailable: "ระบบตรวจสลิปขัดข้องชั่วคราว กรุณาลองใหม่ หรือกดแจ้งโอนให้ผู้ดูแลตรวจสอบ",
 };
 
@@ -98,6 +102,7 @@ export function slipOkFailure(code: number | undefined): SlipFailure {
   if (code === 1013) return "amount_mismatch";
   if (code === 1014) return "wrong_receiver";
   if (code === 1009 || code === 1010) return "bank_delay";
+  if (code !== undefined && ((code >= 1000 && code <= 1004) || code === 1015)) return "setup";
   if (code !== undefined && ((code >= 1005 && code <= 1008) || code === 1011)) return "unreadable";
   return "unavailable";
 }
