@@ -6,6 +6,16 @@ import type { DrawnCard, SpreadPosition, TarotCard } from "../tarot/types";
  * browser's speech engine is driven by components/speech/narrator.ts.
  */
 
+/** What kind of text was listened to; counted once per person per day (rule 13: nothing else). */
+export const LISTEN_KINDS = ["reading", "daily", "chat"] as const;
+export type ListenKind = (typeof LISTEN_KINDS)[number];
+
+/** "reading:advice" → "reading", "chat:abc" → "chat", "daily" → "daily". */
+export function listenKind(scope: string): ListenKind | null {
+  const head = scope.split(":")[0];
+  return (LISTEN_KINDS as readonly string[]).includes(head) ? (head as ListenKind) : null;
+}
+
 export interface NarrationPart {
   /** stable id, also used to highlight the part on the page */
   id: string;

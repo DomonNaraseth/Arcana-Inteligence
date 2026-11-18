@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { speechChunks, type NarrationPart } from "@/lib/speech/narration";
+import { listenKind, speechChunks, type ListenKind, type NarrationPart } from "@/lib/speech/narration";
 
 /**
  * One narrator for the whole app, on top of the browser's own speech engine
@@ -87,6 +87,30 @@ function init() {
   synth().addEventListener?.("voiceschanged", pickVoice);
   // never keep talking after the page is left
   window.addEventListener("pagehide", () => stop());
+  // a locked screen or another app can silence the engine without an end
+  // event (iOS); coming back picks up the sentence that was cut off
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible" || state.status !== "playing") return;
+    if (synth().speaking || synth().pending) return;
+    run += 1;
+    speakCurrent(run);
+  });
+}
+
+/** Counts that someone listened, once per kind of text per page visit. Never interrupts speech. */
+const counted = new Set<ListenKind>();
+function countListen(scope: string) {
+  const what = listenKind(scope);
+  if (!what || counted.has(what)) return;
+  counted.add(what);
+  const body = JSON.stringify({ event: "listen", what });
+  try {
+    if (!navigator.sendBeacon?.("/api/track", new Blob([body], { type: "application/json" }))) {
+      void fetch("/api/track", { method: "POST", headers: { "content-type": "application/json" }, body, keepalive: true });
+    }
+  } catch {
+    // measurement is best effort
+  }
 }
 
 function speakCurrent(token: number) {
@@ -116,6 +140,8 @@ function speakCurrent(token: number) {
     speakCurrent(token);
   };
   current = u;
+  // Chrome can be left in a paused state by the OS; speak() then queues silently
+  if (synth().paused) synth().resume();
   synth().speak(u);
 }
 
@@ -140,6 +166,7 @@ export function play(parts: NarrationPart[], scope: string, start = 0) {
   partIndex = Math.min(Math.max(start, 0), parts.length - 1);
   set({ scope });
   startPart(run);
+  countListen(scope);
 }
 
 export function pause() {

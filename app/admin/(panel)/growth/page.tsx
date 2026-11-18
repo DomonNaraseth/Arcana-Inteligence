@@ -23,6 +23,8 @@ interface Funnel {
   }[];
   top_pages: { path: string; visitors: number }[];
   shares: { channel: string; shares: number; people: number }[];
+  /** read-aloud use: people, and person-days, per kind of text */
+  listens?: { what: string; days: number; people: number }[];
   quality: { people: number; without_source: number; direct: number };
 }
 
@@ -67,6 +69,12 @@ const CHANNEL_TH: Record<string, string> = {
   x: "X",
   copy: "คัดลอกลิงก์",
   download: "บันทึกรูป",
+};
+
+const LISTEN_TH: Record<string, string> = {
+  reading: "คำอ่านไพ่",
+  daily: "ไพ่ประจำวัน",
+  chat: "คำตอบถามต่อ",
 };
 
 const PERIODS = [7, 30, 90];
@@ -234,6 +242,12 @@ export default async function AdminGrowthPage({ searchParams }: { searchParams: 
                   {" "}— คนที่เข้ามาจากลิงก์ที่แชร์จะอยู่ในตารางช่องทางเป็น medium &quot;share&quot;
                 </p>
               )}
+              <p className="mt-2 text-sm text-ivory-dim">
+                ฟังเสียงอ่าน:{" "}
+                {funnel.listens && funnel.listens.length > 0
+                  ? funnel.listens.map((l) => `${LISTEN_TH[l.what] ?? l.what} ${l.people} คน`).join(" · ")
+                  : "ยังไม่มีคนกดฟัง"}
+              </p>
               {funnel.top_pages.length === 0 ? (
                 <p className="mt-4 text-sm text-ivory-dim">ยังไม่มีข้อมูล</p>
               ) : (

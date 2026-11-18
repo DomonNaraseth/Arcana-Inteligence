@@ -36,7 +36,7 @@ export function ListenButton({
       aria-label={playing ? `หยุดอ่าน${label}ชั่วคราว` : mine ? `อ่าน${label}ต่อ` : `ฟัง${label}`}
       aria-pressed={mine}
       className={clsx(
-        "inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
+        "inline-flex min-h-11 min-w-11 shrink-0 print:hidden items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
         mine
           ? "border-gold/60 bg-gold/15 text-gold-light"
           : "border-white/10 text-ivory-dim hover:border-gold/40 hover:text-ivory",

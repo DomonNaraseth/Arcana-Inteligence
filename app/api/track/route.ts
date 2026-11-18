@@ -3,6 +3,7 @@ import { z } from "zod";
 import { recordEvent } from "@/lib/data/events";
 import { getContext } from "@/lib/supabase/server";
 import { SHARE_CHANNELS } from "@/lib/share";
+import { LISTEN_KINDS } from "@/lib/speech/narration";
 import { attributeVisit, deviceClass, isBot, trackedPath } from "@/lib/tracking";
 
 const bodySchema = z.union([
@@ -12,6 +13,7 @@ const bodySchema = z.union([
     referrer: z.string().max(1000).optional(),
   }),
   z.object({ event: z.literal("share"), channel: z.enum(SHARE_CHANNELS) }),
+  z.object({ event: z.literal("listen"), what: z.enum(LISTEN_KINDS) }),
 ]);
 
 const done = () => new NextResponse(null, { status: 204 });
@@ -33,7 +35,8 @@ export async function POST(req: Request) {
 
     if ("event" in body) {
       const { supabase } = await getContext();
-      await recordEvent(supabase, "share", `/share/${body.channel}`);
+      if (body.event === "share") await recordEvent(supabase, "share", `/share/${body.channel}`);
+      else await recordEvent(supabase, "listen", `/listen/${body.what}`);
       return done();
     }
 

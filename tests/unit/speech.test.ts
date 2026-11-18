@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Interpretation } from "@/lib/ai/schemas";
-import { dailyNarration, readingNarration, speechChunks, speechText } from "@/lib/speech/narration";
+import { dailyNarration, listenKind, readingNarration, speechChunks, speechText } from "@/lib/speech/narration";
 import { DECK } from "@/lib/tarot/deck";
 import type { DrawnCard, SpreadPosition } from "@/lib/tarot/types";
 
@@ -134,6 +134,16 @@ describe("speechChunks", () => {
     const chunks = speechChunks(run, 60);
     for (const c of chunks) expect(c.length).toBeLessThanOrEqual(60);
     expect(chunks.join("")).toBe(run);
+  });
+});
+
+describe("listenKind", () => {
+  it("counts only the three kinds of text, never the section or message id", () => {
+    expect(listenKind("reading:advice")).toBe("reading");
+    expect(listenKind("reading:all")).toBe("reading");
+    expect(listenKind("chat:5f1c")).toBe("chat");
+    expect(listenKind("daily")).toBe("daily");
+    expect(listenKind("other")).toBeNull();
   });
 });
 
