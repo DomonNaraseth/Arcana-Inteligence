@@ -13,6 +13,29 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  a,
+  button,
+  [role="button"],
+  label,
+  summary {
+    touch-action: manipulation;
+  }
+  img {
+    -webkit-user-drag: none;
+  }
+  /* iOS zooms into any field below 16px; keep small-looking fields at 16px on touch screens */
+  @media (pointer: coarse) {
+    input.text-sm,
+    input.text-xs,
+    select.text-sm,
+    textarea.text-sm,
+    .field.text-sm {
+      font-size: 16px;
+    }
   }
   body {
     @apply bg-midnight text-ivory font-sans antialiased;
@@ -43,7 +66,7 @@
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-[15px] font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-full px-6 py-3 text-[15px] font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-gold {
     @apply btn bg-gold text-midnight shadow-glow hover:bg-gold-light active:scale-[0.98];
@@ -76,6 +99,38 @@
   .divider-ornament::after {
     content: "";
     @apply h-px flex-1 bg-gradient-to-r from-transparent via-gold/40 to-transparent;
+  }
+}
+
+/* bottom sheet (native <dialog>): slide up from the edge */
+dialog.sheet[open] {
+  animation: sheet-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+dialog.sheet::backdrop {
+  animation: fade-in 0.2s ease-out;
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* installed app: no rubber-band reveal of the page edge */
+@media (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior-y: none;
   }
 }
 

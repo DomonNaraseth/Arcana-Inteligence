@@ -39,13 +39,13 @@ export default function LandingPage() {
     <div className="relative overflow-hidden">
       <div className="stars pointer-events-none absolute inset-0 opacity-70" aria-hidden="true" />
 
-      <header className="relative mx-auto flex max-w-6xl items-center justify-between px-5 py-6">
+      <header className="relative mx-auto flex max-w-6xl items-center justify-between px-5 pb-6 pt-[max(1.5rem,env(safe-area-inset-top))]">
         <Logo />
         <nav className="flex items-center gap-2">
           <Link href="/cards" className="btn-quiet hidden sm:inline-flex">
             คลังไพ่
           </Link>
-          <Link href="/home" className="btn-ghost px-5 py-2 text-sm">
+          <Link href="/home" className="btn-ghost whitespace-nowrap px-5 py-2 text-sm">
             เข้าสู่แอป
           </Link>
         </nav>

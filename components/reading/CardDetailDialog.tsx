@@ -41,7 +41,7 @@ export function CardDetailDialog({ card, orientation, positionName, positionMean
         role="dialog"
         aria-modal="true"
         aria-labelledby="card-dialog-title"
-        className="panel-gold relative max-h-[88dvh] w-full max-w-2xl overflow-y-auto rounded-b-none bg-navy p-6 sm:rounded-2xl sm:p-8"
+        className="panel-gold relative max-h-[88dvh] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-b-none bg-navy p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:rounded-2xl sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -49,7 +49,7 @@ export function CardDetailDialog({ card, orientation, positionName, positionMean
           type="button"
           onClick={onClose}
           aria-label="ปิด"
-          className="absolute right-4 top-4 rounded-full p-2 text-ivory-dim hover:bg-white/10 hover:text-ivory"
+          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full text-ivory-dim hover:bg-white/10 hover:text-ivory"
         >
           <X className="h-5 w-5" />
         </button>

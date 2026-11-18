@@ -294,6 +294,14 @@ Migration: `supabase/migrations/0008_arcana_growth.sql`. Code: `lib/tracking.ts`
 
 **Renewal reminder:** prepaid memberships show a banner on home and account from 5 days before the end until 7 days after (`renewalNotice()`); recurring and admin-set memberships do not.
 
+## 6h. Mobile and installable app
+
+- **Install:** `app/manifest.ts` (standalone, start_url tagged `utm_source=app`, shortcuts to the daily card and Ask), icons in `public/icons` plus `app/apple-icon.png` and `app/icon.svg`, rendered from `assets/brand/app-icon.svg` by `scripts/build-icons.mjs` (sharp). The artwork keeps everything inside the central 80% circle so one design serves as the maskable icon. `appleWebApp` metadata makes it a full-screen app on iOS with a translucent status bar.
+- **Layout:** `viewport-fit=cover`; headers pad with `env(safe-area-inset-top)`, the tab bar and sheets with `env(safe-area-inset-bottom)`, side gutters with the left inset (landscape notch). Below `lg` (phones and tablets) navigation is a bottom tab bar — Home, Daily card, Ask (raised, centre), History, More — and "More" is a native `<dialog>` bottom sheet; at `lg` and up the header navigation shows instead.
+- **Touch:** buttons are at least 44px tall, `touch-action: manipulation`, no tap highlight; on touch screens small form fields render at 16px so iOS Safari does not zoom on focus.
+- **Offline:** `public/sw.js` caches nothing the app shows (every request goes to the network, so deployments show at once); it only answers a failed page navigation with `public/offline.html`. Registered in production builds only; served with `no-cache`.
+- **Install invitation:** `components/shell/InstallApp.tsx` on Home and Account — the browser's install prompt on Android/Chrome, two-step instructions on iPhone/iPad Safari; hidden once installed, and for 14 days after it is dismissed.
+
 ## 7. Folder structure
 
 ```

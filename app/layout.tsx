@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Noto_Sans_Thai, Noto_Serif_Thai } from "next/font/google";
+import { ServiceWorker } from "@/components/shell/ServiceWorker";
 import { Tracker } from "@/components/shell/Tracker";
 import { siteUrl } from "@/lib/site";
 import "./globals.css";
@@ -27,6 +28,9 @@ const sans = Noto_Sans_Thai({
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
+  applicationName: "ARCANA",
+  appleWebApp: { capable: true, title: "ARCANA", statusBarStyle: "black-translucent" },
+  formatDetection: { telephone: false, email: false, address: false },
   title: {
     default: "ARCANA INTELLIGENCE — AI Tarot & Life Guidance",
     template: "%s · ARCANA INTELLIGENCE",
@@ -49,8 +53,11 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#101827",
+  colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
+  // draw under the notch / home indicator; the layout pads with safe-area insets
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -59,6 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <Tracker />
+        <ServiceWorker />
       </body>
     </html>
   );

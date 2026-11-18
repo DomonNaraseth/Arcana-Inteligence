@@ -28,7 +28,7 @@ export function AdminNav({ role, email }: { role: "owner" | "admin"; email: stri
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-midnight/90 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-midnight/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3">
         <Link href="/admin" className="flex items-center gap-2.5">
           <Sigil className="h-7 w-7" />

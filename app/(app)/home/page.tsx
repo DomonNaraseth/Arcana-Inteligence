@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Flame, Sparkles } from "lucide-react";
 import { RenewalBanner } from "@/components/account/RenewalBanner";
+import { InstallApp } from "@/components/shell/InstallApp";
 import { CardBack } from "@/components/tarot/CardBack";
 import { renewalNotice, type RenewalNotice } from "@/lib/billing/renewal";
 import type { MySubscription } from "@/lib/billing/service";
@@ -198,6 +199,8 @@ export default async function HomePage() {
           )}
         </section>
       </div>
+
+      <InstallApp />
 
       <nav aria-label="ลิงก์เพิ่มเติม" className="flex flex-wrap gap-3 text-sm">
         <Link href="/cards" className="btn-quiet border border-white/15">

@@ -18,7 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-dvh pb-24 md:pb-0">
+    <div className="min-h-dvh pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
       <AppNav signedIn={signedIn} />
       <Suspense fallback={null}>
         <AuthNotice />
@@ -29,7 +29,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           NEXT_PUBLIC_SUPABASE_ANON_KEY, ARCANA_SERVER_SECRET)
         </div>
       )}
-      <main className="mx-auto max-w-6xl px-5 py-8 sm:py-12">{children}</main>
+      <main className="mx-auto max-w-6xl px-[max(1.25rem,env(safe-area-inset-left))] py-6 sm:py-10 lg:py-12">{children}</main>
       <footer className="mx-auto max-w-6xl px-5 pb-10 text-center text-xs text-ivory-dim/60">
         ไพ่ทาโรต์เป็นเครื่องมือเชิงสัญลักษณ์เพื่อการสะท้อนคิด ไม่ใช่การพยากรณ์ที่รับประกันผล
         และไม่ทดแทนคำแนะนำจากผู้เชี่ยวชาญด้านการแพทย์ กฎหมาย หรือการเงิน

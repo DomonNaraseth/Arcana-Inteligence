@@ -110,14 +110,14 @@ export function DailyRitual({
 
   return (
     <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
-      <section className="panel-gold flex flex-col items-center px-6 py-10 text-center" aria-live="polite">
+      <section className="panel-gold flex flex-col items-center px-5 py-7 text-center sm:px-6 sm:py-10" aria-live="polite">
         {result ? (
           <>
             <TarotCardView
               card={result.card}
               orientation={result.orientation}
               revealed={flipped}
-              widthClass="w-44 sm:w-52"
+              widthClass="w-40 sm:w-52"
               skipAnimation={Boolean(reduceMotion) || Boolean(initial)}
               priority
             />
@@ -140,15 +140,15 @@ export function DailyRitual({
               onClick={() => void onReveal()}
               disabled={busy}
               aria-label="ไพ่คว่ำ แตะเพื่อเปิดไพ่ประจำวัน"
-              className="relative aspect-[10/17] w-44 overflow-hidden rounded-xl shadow-card transition-transform hover:-translate-y-1 focus-visible:-translate-y-1 motion-reduce:transform-none sm:w-52"
+              className="relative aspect-[10/17] w-40 overflow-hidden rounded-xl shadow-card transition-transform hover:-translate-y-1 focus-visible:-translate-y-1 motion-reduce:transform-none sm:w-52"
             >
               <CardBack className="h-full w-full" />
             </button>
-            <p className="mt-6 max-w-xs text-sm text-ivory-dim">
+            <p className="mt-5 max-w-xs text-sm text-ivory-dim sm:mt-6">
               ตั้งใจถึงวันนี้ของคุณสักครู่ แล้วแตะไพ่เพื่อเปิด — ไพ่ประจำวันเปิดได้วันละหนึ่งใบ
               และจะไม่เปลี่ยนตลอดทั้งวัน
             </p>
-            <button type="button" onClick={() => void onReveal()} disabled={busy} className="btn-gold mt-6">
+            <button type="button" onClick={() => void onReveal()} disabled={busy} className="btn-gold mt-5 sm:mt-6">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               เปิดไพ่ประจำวัน
             </button>

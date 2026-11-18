@@ -5,6 +5,7 @@ import { AuthPanel } from "@/components/account/AuthPanel";
 import { BuyCredits } from "@/components/account/BuyCredits";
 import { ManageSubscriptionButton } from "@/components/account/MembershipActions";
 import { RenewalBanner } from "@/components/account/RenewalBanner";
+import { InstallApp } from "@/components/shell/InstallApp";
 import { renewalNotice } from "@/lib/billing/renewal";
 import { PaymentReturn } from "@/components/account/PaymentReturn";
 import { aiStatus } from "@/lib/ai/provider";
@@ -337,6 +338,10 @@ export default async function AccountPage({
       )}
 
       <AuthPanel signedIn={!isGuest} email={user?.email ?? null} />
+
+      <div className="mt-6">
+        <InstallApp />
+      </div>
 
       <section className="mt-8 text-sm text-ivory-dim">
         <h2 className="text-base font-medium text-ivory">ความเป็นส่วนตัว</h2>

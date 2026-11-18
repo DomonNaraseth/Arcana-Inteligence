@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!--
+    ARCANA app icon: an arched tarot card standing in the night, holding the
+    compass star from the card back. Everything that matters sits inside the
+    central 80% circle, so the same artwork works as a maskable icon.
+  -->
+  <defs>
+    <radialGradient id="sky" cx="50%" cy="36%" r="78%">
+      <stop offset="0" stop-color="#24395B"/>
+      <stop offset="0.5" stop-color="#17263C"/>
+      <stop offset="1" stop-color="#0A101B"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F1DCA6"/>
+      <stop offset="0.45" stop-color="#C6A15B"/>
+      <stop offset="1" stop-color="#8E6C33"/>
+    </linearGradient>
+    <linearGradient id="star" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FBEBC2"/>
+      <stop offset="0.55" stop-color="#D4B06A"/>
+      <stop offset="1" stop-color="#A9843F"/>
+    </linearGradient>
+    <linearGradient id="window" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2A426A" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#101827" stop-opacity="0.9"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#C6A15B" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#C6A15B" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+
+  <!-- distant stars -->
+  <g fill="#F0E9DA">
+    <circle cx="214" cy="236" r="5" opacity="0.55"/>
+    <circle cx="806" cy="198" r="4" opacity="0.5"/>
+    <circle cx="858" cy="612" r="5" opacity="0.4"/>
+    <circle cx="170" cy="700" r="4" opacity="0.4"/>
+    <circle cx="276" cy="884" r="3" opacity="0.35"/>
+    <circle cx="760" cy="868" r="3" opacity="0.35"/>
+  </g>
+
+  <!-- the card: an arch, filled with a deeper night -->
+  <path d="M298 848 V414 A214 214 0 0 1 726 414 V848 Z" fill="url(#window)"/>
+  <path d="M298 848 V414 A214 214 0 0 1 726 414 V848 Z" fill="none" stroke="url(#gold)" stroke-width="24" stroke-linejoin="round"/>
+  <path d="M342 804 V414 A170 170 0 0 1 682 414 V804 Z" fill="none" stroke="#C6A15B" stroke-width="6" opacity="0.55"/>
+
+  <!-- glow behind the star -->
+  <circle cx="512" cy="540" r="196" fill="url(#halo)"/>
+
+  <!-- compass star -->
+  <path d="M512 324 L544 508 L691 540 L544 572 L512 756 L480 572 L333 540 L480 508 Z" fill="url(#star)"/>
+  <path d="M512 439 L526 526 L599 540 L526 554 L512 641 L498 554 L425 540 L498 526 Z" fill="#FFF6DA" opacity="0.55"/>
+  <circle cx="512" cy="540" r="17" fill="#101827"/>
+
+  <!-- small stars inside the card -->
+  <g fill="#E9CF92">
+    <circle cx="415" cy="384" r="8"/>
+    <circle cx="613" cy="402" r="6"/>
+    <circle cx="406" cy="712" r="6"/>
+    <circle cx="620" cy="696" r="8"/>
+  </g>
+</svg>
