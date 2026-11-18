@@ -50,7 +50,8 @@ export async function analyzeQuestion(
   try {
     const result = await generate({
       tier: "fast",
-      maxTokens: 900,
+      // Thai is token-heavy and the analysis now lists details and sub-questions
+      maxTokens: 1600,
       system: questionAnalysisSystem(spreads),
       messages: [{ role: "user", content: `คำถามของผู้ใช้:\n"""${question}"""` }],
     });
@@ -99,7 +100,7 @@ const YES_NO_LEANS = ["โน้มไปทางใช่", "โน้มไ�
 export function verifyInterpretation(
   data: Interpretation,
   drawn: DrawnCard[],
-  opts: { cardOf: CardLookup; intent?: QuestionAnalysis["intent"] | null },
+  opts: { cardOf: CardLookup; intent?: QuestionAnalysis["intent"] | null; subQuestions?: string[] | null },
 ): string[] {
   const issues: string[] = [];
   const byPos = new Map(data.cards.map((c) => [c.position, c]));
@@ -136,6 +137,23 @@ export function verifyInterpretation(
   if (opts.intent === "timing" && !data.timeline?.length) {
     issues.push("คำถามเรื่องจังหวะเวลา ต้องมี timeline");
   }
+
+  // several questions in one: every one gets its own answer, resting on drawn cards
+  const asked = (opts.subQuestions ?? []).filter(Boolean);
+  if (asked.length >= 2) {
+    const answers = data.sub_answers ?? [];
+    if (answers.length !== asked.length) {
+      issues.push(`ผู้ถามถาม ${asked.length} เรื่อง ต้องตอบครบใน sub_answers (ได้ ${answers.length} ข้อ)`);
+    }
+    for (const [i, a] of answers.entries()) {
+      const unknown = a.positions.filter((p) => !positions.has(p));
+      if (unknown.length) issues.push(`คำตอบย่อยข้อ ${i + 1} อ้างไพ่ตำแหน่ง ${unknown.join(", ")} ซึ่งไม่ได้เปิด`);
+    }
+  }
+
+  // examples cover different sides of the question
+  const dims = (data.examples ?? []).map((e) => e.dimension?.trim().toLowerCase()).filter(Boolean);
+  if (new Set(dims).size !== dims.length) issues.push("ตัวอย่างแต่ละข้อต้องคนละมิติ (dimension ซ้ำกัน)");
 
   const qc = data.quality_check;
   if (!qc.answered_question) issues.push("ยังไม่ได้ตอบคำถามต้นฉบับ");
@@ -194,6 +212,7 @@ export async function interpretReading(args: {
         issues = verifyInterpretation(candidate, args.drawn, {
           cardOf: args.cardOf,
           intent: args.analysis?.intent,
+          subQuestions: args.analysis?.sub_questions,
         });
       } else {
         issues = parsed.error.issues
@@ -226,8 +245,9 @@ export async function interpretReading(args: {
     // an example that rests on a card that was never drawn is dropped, not shown
     const drawnPositions = new Set(args.drawn.map((d) => d.position));
     const examples = lastValid.examples?.filter((e) => e.positions.every((p) => drawnPositions.has(p)));
+    const sub_answers = lastValid.sub_answers?.filter((a) => a.positions.every((p) => drawnPositions.has(p)));
     return {
-      interpretation: { ...lastValid, examples },
+      interpretation: { ...lastValid, examples, sub_answers },
       usage: usageOf(results)!,
       quality: { passed: false, attempts: MAX_ATTEMPTS, issues: lastIssues },
     };
@@ -262,6 +282,7 @@ export function summarizeInterpretation(i: Interpretation): string {
     `คำแนะนำ: ${i.advice.join(" / ")}`,
     `ข้อควรระวัง: ${i.cautions.join(" / ")}`,
     `บทสรุป: ${i.conclusion}`,
+    i.sub_answers?.length ? `คำตอบแยกตามประเด็น: ${i.sub_answers.map((a) => `${a.question} → ${a.answer}`).join(" / ")}` : "",
     i.examples?.length ? `ตัวอย่างที่ให้ไว้: ${i.examples.map((e) => `${e.title} — ${e.example}`).join(" / ")}` : "",
   ]
     .filter(Boolean)

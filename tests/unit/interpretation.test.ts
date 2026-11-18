@@ -86,6 +86,29 @@ describe("verifyInterpretation", () => {
     expect(check(reading({ timeline: [{ period: "1-3 เดือน", outlook: "เริ่มชัด" }] }), "timing")).toEqual([]);
   });
 
+  it("answers every question when several were asked", () => {
+    const subQuestions = ["จะได้งานไหม", "เงินเดือนจะดีกว่าเดิมไหม"];
+    const one = [{ question: "จะได้งานไหม", answer: "โน้มไปทางใช่ เพราะ…", positions: [1] }];
+    const run = (sub_answers: Interpretation["sub_answers"]) =>
+      verifyInterpretation(reading({ sub_answers }), drawn, { cardOf, intent: null, subQuestions });
+    expect(run(one).join()).toContain("ต้องตอบครบใน sub_answers");
+    expect(run([...one, { question: "เงินเดือนจะดีกว่าเดิมไหม", answer: "ก้ำกึ่ง…", positions: [2] }])).toEqual([]);
+    expect(run([...one, { question: "เงินเดือนจะดีกว่าเดิมไหม", answer: "ก้ำกึ่ง…", positions: [9] }]).join()).toContain(
+      "คำตอบย่อยข้อ 2 อ้างไพ่ตำแหน่ง 9",
+    );
+    // a single question needs no sub-answers
+    expect(verifyInterpretation(reading(), drawn, { cardOf, subQuestions: ["จะได้งานไหม"] })).toEqual([]);
+  });
+
+  it("wants each example on a different side of the question", () => {
+    const examples = [
+      { title: "a", example: "x", positions: [1], dimension: "ความรู้สึก" },
+      { title: "b", example: "y", positions: [2], dimension: "ความรู้สึก " },
+    ];
+    expect(check(reading({ examples })).join()).toContain("คนละมิติ");
+    expect(check(reading({ examples: [examples[0], { ...examples[1], dimension: "จังหวะเวลา" }] }))).toEqual([]);
+  });
+
   it("still catches a card that does not match the draw", () => {
     const cards = [reading().cards[0], { ...reading().cards[1], card_id: DECK[5].id }];
     expect(check(reading({ cards })).join()).toContain(`ตำแหน่งที่ 2 ต้องเป็นไพ่ ${second.id}`);
@@ -131,6 +154,38 @@ describe("answer shape", () => {
     });
     expect(user).toContain(ANSWER_SHAPE.yes_no);
     expect(system).toContain('"examples"');
+  });
+
+  it("hands the model the person's own details and each separate question", () => {
+    const spread = SPREADS[0];
+    const { user, system } = interpretationPrompt({
+      question: "พรุ่งนี้สัมภาษณ์งานที่บริษัท A ตำแหน่งดีไซเนอร์ จะได้ไหม และเงินเดือนจะดีกว่าเดิมไหม",
+      analysis: {
+        category: "career",
+        intent: "yes_no",
+        time_horizon: "1 เดือน",
+        dimensions: ["โอกาสได้งาน", "ค่าตอบแทน"],
+        understanding: "คุณต้องการรู้ว่าจะได้งานและเงินเดือนดีขึ้นไหม",
+        ambiguity_level: "low",
+        clarification_question: null,
+        recommended_spread: spread.id,
+        spread_reason: "",
+        sensitivity: "none",
+        key_details: ["สัมภาษณ์พรุ่งนี้", "บริษัท A", "ตำแหน่งดีไซเนอร์"],
+        sub_questions: ["จะได้งานไหม", "เงินเดือนจะดีกว่าเดิมไหม"],
+        source: "ai",
+      },
+      spread,
+      drawn: drawn.slice(0, 1),
+      todayIso: "2026-11-19",
+      cardOf,
+      kbVersion: "test",
+    });
+    expect(user).toContain("บริษัท A");
+    expect(user).toContain('"sub_questions"');
+    expect(user).toContain("เงินเดือนจะดีกว่าเดิมไหม");
+    expect(system).toContain('"sub_answers"');
+    expect(system).toContain('"dimension"');
   });
 
   it("lets an answer without examples through the schema, so the code check (retry, then notice) decides", () => {

@@ -62,13 +62,25 @@ export function readingNarration(args: {
   const parts: NarrationPart[] = [
     { id: "direct", title: "คำตอบโดยตรง", text: join([data.title, "คำตอบโดยตรง.", data.direct_answer]) },
   ];
+  if (data.sub_answers?.length) {
+    parts.push({
+      id: "sub-answers",
+      title: "คำตอบแยกตามคำถามของคุณ",
+      text: join([
+        "คำตอบแยกตามคำถามของคุณ.",
+        data.sub_answers.map((a, i) => `ข้อ ${i + 1}. ${a.question}. ${a.answer}`).join(" "),
+      ]),
+    });
+  }
   if (data.examples?.length) {
     parts.push({
       id: "examples",
       title: "ตัวอย่างที่ใกล้กับเรื่องของคุณ",
       text: join([
         "ตัวอย่างที่ใกล้กับเรื่องของคุณ.",
-        data.examples.map((e, i) => `ตัวอย่างที่ ${i + 1}. ${e.title}. ${e.example}`).join(" "),
+        data.examples
+          .map((e, i) => `ตัวอย่างที่ ${i + 1}${e.dimension ? ` ด้าน${e.dimension}` : ""}. ${e.title}. ${e.example}`)
+          .join(" "),
       ]),
     });
   }

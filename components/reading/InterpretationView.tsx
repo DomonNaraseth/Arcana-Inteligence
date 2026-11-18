@@ -160,6 +160,43 @@ export function InterpretationView({
         </p>
       </div>
 
+      {/* one answer per question, when several were asked (prompt v3 on) */}
+      {data.sub_answers && data.sub_answers.length > 0 && (
+        <section
+          className="mt-5 rounded-2xl border border-gold/25 bg-navy-light/30 p-5 sm:p-6"
+          aria-labelledby="subanswers-title"
+          data-narration-part="sub-answers"
+          data-reading={narration.reading === "sub-answers" || undefined}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <h3 id="subanswers-title" className="pt-3 text-sm font-medium tracking-wide text-gold">
+              คำตอบแยกตามคำถามของคุณ
+            </h3>
+            <Listen id="sub-answers" narration={narration} label="คำตอบแยกตามคำถาม" />
+          </div>
+          <ol className="mt-4 space-y-5">
+            {data.sub_answers.map((a, i) => (
+              <li key={i} className="flex gap-4">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/50 font-serif text-sm text-gold">
+                  {i + 1}
+                </span>
+                <div className="min-w-0">
+                  <p className="font-medium text-gold-light">{a.question}</p>
+                  <p className="mt-1 text-[15px] leading-[1.85] text-ivory/90">
+                    <CardProse text={a.answer} />
+                  </p>
+                  <p className="mt-2 flex flex-wrap gap-1.5">
+                    {a.positions.map((p) => (
+                      <span key={p}>{thumb(p, "w-7", "32px")}</span>
+                    ))}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
       {/* close-to-the-question examples (readings from prompt v2 on) */}
       {data.examples && data.examples.length > 0 && (
         <section
@@ -177,6 +214,9 @@ export function InterpretationView({
           <ul className="mt-4 space-y-4">
             {data.examples.map((e, i) => (
               <li key={i} className="border-l-2 border-gold/40 pl-4">
+                {e.dimension && (
+                  <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.18em] text-gold/70">{e.dimension}</p>
+                )}
                 <p className="font-medium text-gold-light">{e.title}</p>
                 <p className="mt-1 text-[15px] leading-[1.85] text-ivory/90">
                   <CardProse text={e.example} />

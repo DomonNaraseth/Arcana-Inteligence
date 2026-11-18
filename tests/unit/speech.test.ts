@@ -92,6 +92,21 @@ describe("readingNarration", () => {
     expect(parts[1].text).toContain("ตัวอย่างที่ 1. ตอนคุยกัน. อาจเริ่มจากข้อความสั้น ๆ");
   });
 
+  it("reads the per-question answers right after the direct answer", () => {
+    const parts = readingNarration({
+      data: interpretation({
+        sub_answers: [{ question: "จะได้งานไหม", answer: "โน้มไปทางใช่", positions: [1] }],
+        examples: [{ title: "ตอนสัมภาษณ์", example: "อาจถูกถามเรื่องพอร์ต", positions: [1], dimension: "สัญญาณ" }],
+      }),
+      drawn,
+      positions,
+      cardOf,
+    });
+    expect(parts.map((p) => p.id).slice(0, 3)).toEqual(["direct", "sub-answers", "examples"]);
+    expect(parts[1].text).toContain("ข้อ 1. จะได้งานไหม. โน้มไปทางใช่");
+    expect(parts[2].text).toContain("ตัวอย่างที่ 1 ด้านสัญญาณ");
+  });
+
   it("adds timeline and scenarios only when the reading has them", () => {
     const parts = readingNarration({
       data: interpretation({

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const PROMPT_VERSION = "arcana-2026.11-v2";
+export const PROMPT_VERSION = "arcana-2026.11-v3";
 
 export const CATEGORIES = [
   "general", "love", "relationship", "career", "finance", "business", "family",
@@ -39,6 +39,10 @@ export const questionAnalysisSchema = z.object({
   recommended_spread: z.string(),
   spread_reason: z.string().max(400),
   sensitivity: z.enum(["none", "health", "legal", "financial", "crisis"]),
+  /** concrete facts the person gave (who, what, when, options, amounts) — in their own words */
+  key_details: z.array(z.string().trim().min(1).max(140)).max(8).optional(),
+  /** each separate thing asked, when the person asked more than one (2–4), else empty */
+  sub_questions: z.array(z.string().trim().min(3).max(220)).max(4).optional(),
 });
 
 export type QuestionAnalysis = z.infer<typeof questionAnalysisSchema> & {
@@ -84,6 +88,8 @@ export const interpretationSchema = z.object({
         title: text(120),
         example: text(700),
         positions: z.array(z.number().int().min(1)).min(1).max(10),
+        /** which side of the question this example shows (e.g. ความรู้สึก, การกระทำ, จังหวะเวลา) */
+        dimension: z.string().trim().min(1).max(40).optional(),
       }),
     )
     .min(1)
@@ -91,6 +97,18 @@ export const interpretationSchema = z.object({
     // asked of every new answer and enforced by verifyInterpretation (one
     // retry, then delivered with a notice) — a missing example must never sink
     // the whole reading. Readings saved before prompt v2 do not have it.
+    .optional(),
+  /** one answer per question when the person asked several things (prompt v3) */
+  sub_answers: z
+    .array(
+      z.object({
+        question: text(220),
+        answer: text(900),
+        positions: z.array(z.number().int().min(1)).min(1).max(10),
+      }),
+    )
+    .max(4)
+    .nullable()
     .optional(),
   follow_up_questions: z.array(text(200)).min(1).max(4),
   quality_check: z.object({

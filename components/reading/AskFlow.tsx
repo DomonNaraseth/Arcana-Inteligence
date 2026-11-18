@@ -238,6 +238,34 @@ export function AskFlow({
                       ))}
                     </ul>
                   </div>
+                  {(analysis.sub_questions?.length ?? 0) >= 2 && (
+                    <div className="mt-5">
+                      <p className="text-sm text-ivory-dim">คุณถาม {analysis.sub_questions!.length} เรื่อง — ไพ่จะตอบทีละข้อ</p>
+                      <ol className="mt-2 space-y-1.5 text-sm text-ivory">
+                        {analysis.sub_questions!.map((q, i) => (
+                          <li key={i} className="flex gap-2">
+                            <span className="font-serif text-gold">{i + 1}.</span>
+                            {q}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+                  {(analysis.key_details?.length ?? 0) > 0 && (
+                    <div className="mt-5">
+                      <p className="text-sm text-ivory-dim">รายละเอียดที่ไพ่จะนำไปใช้ในการตอบ</p>
+                      <ul className="mt-2 flex flex-wrap gap-2">
+                        {analysis.key_details!.map((d) => (
+                          <li key={d} className="rounded-full border border-white/15 px-3 py-1 text-xs text-ivory/90">
+                            {d}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-2 text-xs text-ivory-dim">
+                        ถ้ามีอะไรไม่ตรง กด “แก้ไขคำถาม” แล้วเล่าเพิ่ม — ยิ่งชัด คำตอบยิ่งตรง
+                      </p>
+                    </div>
+                  )}
                   {analysis.source === "heuristic" && (
                     <p className="mt-5 text-xs text-amber-200/80">
                       หมายเหตุ: ระบบ AI วิเคราะห์คำถามไม่พร้อมใช้งานชั่วคราว จึงจำแนกจากคำสำคัญ
