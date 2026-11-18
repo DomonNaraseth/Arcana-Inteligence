@@ -102,31 +102,48 @@ export async function generateDailyMessage(args: {
   const user = dailyUser(args.card, args.orientation, args.dayLabel);
   let inputTokens = 0;
   let outputTokens = 0;
+  const reasons: string[] = [];
+  let content = user;
   try {
     for (let attempt = 0; attempt < 2; attempt++) {
+      // Thai is token-heavy: good answers used 700–890 tokens, so 900 cut some
+      // off mid-JSON (seen on production, 2026-11-18). Leave ample headroom.
       const result = await generate({
         tier: "fast",
-        maxTokens: 900,
+        maxTokens: 1600,
         system,
-        messages: [{ role: "user", content: user }],
+        messages: [{ role: "user", content }],
       });
       inputTokens += result.inputTokens;
       outputTokens += result.outputTokens;
+      if (result.truncated) {
+        reasons.push("truncated");
+        content = `${user}\n\nคำตอบรอบก่อนยาวเกินจนถูกตัด ให้เขียนสั้นลง (สาร 3 ประโยค) และตอบเป็น JSON ให้ครบ`;
+        continue;
+      }
       let raw: unknown = null;
       try {
         raw = extractJson(result.text);
       } catch {
-        // counted as an unusable attempt below
+        reasons.push("no-json");
+        continue;
       }
       const parsed = dailyMessageSchema.safeParse(raw);
-      if (parsed.success && verifyDailyMessage(parsed.data, args.card, args.deck).length === 0) {
-        return {
-          message: parsed.data,
-          usage: { provider: result.provider, model: result.model, inputTokens, outputTokens },
-        };
+      if (!parsed.success) {
+        reasons.push(`schema:${parsed.error.issues.map((i) => i.path.join(".")).join(",")}`);
+        continue;
       }
+      const issues = verifyDailyMessage(parsed.data, args.card, args.deck);
+      if (issues.length) {
+        reasons.push(issues.join("; "));
+        continue;
+      }
+      return {
+        message: parsed.data,
+        usage: { provider: result.provider, model: result.model, inputTokens, outputTokens },
+      };
     }
-    console.error("[arcana] daily message rejected by validation for", args.card.id);
+    console.error("[arcana] daily message rejected by validation for", args.card.id, reasons.join(" | "));
     return null;
   } catch (err) {
     if (!(err instanceof AiNotConfiguredError)) {
