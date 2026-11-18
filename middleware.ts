@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { canonicalRedirect } from "@/lib/canonical-host";
 
 const GUEST_COOKIE = "arcana_key";
 
@@ -11,6 +12,15 @@ function newGuestKey(): string {
 }
 
 export async function middleware(request: NextRequest) {
+  const canonical = canonicalRedirect({
+    host: request.headers.get("host"),
+    pathAndQuery: `${request.nextUrl.pathname}${request.nextUrl.search}`,
+    method: request.method,
+    vercelEnv: process.env.VERCEL_ENV,
+    productionHost: process.env.VERCEL_PROJECT_PRODUCTION_URL,
+  });
+  if (canonical) return NextResponse.redirect(canonical, 308);
+
   // Issue a secret guest session token on first visit so the reading flow
   // works without sign-up. Set on the request too so this same render sees it.
   let issued: string | null = null;
