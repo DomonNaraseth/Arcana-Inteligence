@@ -40,6 +40,13 @@ function verdict(h: SlipOkHealth): { ok: boolean; text: string }[] {
       });
     }
   }
+  if (!h.connected && h.shape && h.probes) {
+    const s = h.shape;
+    lines.push({
+      ok: false,
+      text: `ไอดีสาขาประกอบด้วย ตัวเลข ${s.branchDigits} · ตัวอักษร ${s.branchLetters} · สัญลักษณ์/ช่องว่าง ${s.branchOther} ตัว · ทดสอบสาขาตัวเลขสมมติ: ${s && h.probes.dummyNumericBranch} · ทดสอบเฉพาะตัวเลขของไอดี: ${h.probes.digitsOfBranch}`,
+    });
+  }
   if (h.probe?.code === 1008 || h.probe?.code === 1007 || h.probe?.code === 1011) {
     lines.push({ ok: true, text: "ทดสอบส่งข้อมูลตัวอย่าง: SlipOK อ่านคำขอได้ถูกต้อง (ตอบว่าไม่ใช่สลิป ตามที่ควร)" });
   } else if (h.probe) {

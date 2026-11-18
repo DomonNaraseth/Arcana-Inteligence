@@ -168,16 +168,39 @@ export interface SlipOkHealth {
   /** what the service answers to a QR text that is not a slip — 1008 means requests reach it intact */
   probe?: { code?: number; message?: string };
   /** the shape of the two settings, never their values — helps spot a swapped or mistyped one */
-  shape?: { branchDigitsOnly: boolean; branchLength: number; keyLength: number; keyLooksLikeBranch: boolean };
+  shape?: {
+    branchDigitsOnly: boolean;
+    branchLength: number;
+    branchDigits: number;
+    branchLetters: number;
+    branchOther: number;
+    keyLength: number;
+    keyLooksLikeBranch: boolean;
+  };
+  /**
+   * Differential probes of the quota call, to tell a malformed branch id from a
+   * wrong key: with a dummy numeric branch, and with only the digits of ours.
+   */
+  probes?: { dummyNumericBranch?: number | "ok"; digitsOfBranch?: number | "ok" | "n/a" };
 }
 
 function shapeOf(branch: string, key: string): NonNullable<SlipOkHealth["shape"]> {
   return {
     branchDigitsOnly: /^\d+$/.test(branch),
     branchLength: branch.length,
+    branchDigits: (branch.match(/\d/g) ?? []).length,
+    branchLetters: (branch.match(/[A-Za-z]/g) ?? []).length,
+    branchOther: (branch.match(/[^A-Za-z\d]/g) ?? []).length,
     keyLength: key.length,
     keyLooksLikeBranch: /^\d+$/.test(key),
   };
+}
+
+/** The branch id SlipOK expects: digits only. Pasted text such as "#12345" or "ID12345" is reduced to its digits. */
+export function normalizeBranchId(raw: string): string {
+  const t = raw.trim();
+  const digits = t.replace(/\D/g, "");
+  return /^\d+$/.test(t) ? t : digits.length >= 3 ? digits : t;
 }
 
 /**
@@ -214,6 +237,23 @@ export async function slipOkHealth(): Promise<SlipOkHealth> {
       }),
     );
     health.probe = { code: p?.code, message: p?.message };
+
+    if (!health.connected) {
+      const quotaCode = async (b: string) => {
+        const r = await read(
+          await fetch(`https://api.slipok.com/api/line/apikey/${encodeURIComponent(b)}/quota`, {
+            headers: { "x-authorization": key },
+            cache: "no-store",
+          }),
+        );
+        return r?.success ? ("ok" as const) : (r?.code ?? -1);
+      };
+      const digits = branch.replace(/\D/g, "");
+      health.probes = {
+        dummyNumericBranch: await quotaCode("1"),
+        digitsOfBranch: digits && digits !== branch ? await quotaCode(digits) : "n/a",
+      };
+    }
     return health;
   } catch (err) {
     return { configured: true, connected: false, message: (err as Error).message, shape: shapeOf(branch, key) };
