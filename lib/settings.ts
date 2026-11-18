@@ -84,7 +84,7 @@ export const settingsSchemas = {
   promptpay: z.object({
     enabled: z.boolean(),
     /** PromptPay ID: 10-digit mobile, 13-digit national/tax id or 15-digit e-wallet id */
-    id: z.string().max(20).regex(/^d*$/),
+    id: z.string().max(20).regex(/^\d*$/),
     /** shown to the payer so they can confirm the recipient in their banking app */
     account_name: z.string().max(80),
     /** optional text that must appear in the slip's recipient details */

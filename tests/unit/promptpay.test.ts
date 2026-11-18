@@ -7,7 +7,7 @@ import {
 } from "@/lib/billing/promptpay";
 import { planLabel } from "@/lib/billing/service";
 import { checkSlip, mapSlipOkData, slipOkFailure, type SlipResult } from "@/lib/billing/slip";
-import { DEFAULT_SETTINGS } from "@/lib/settings";
+import { DEFAULT_SETTINGS, settingsSchemas } from "@/lib/settings";
 
 describe("PromptPay QR", () => {
   it("accepts a mobile number, a national id or an e-wallet id and nothing else", () => {
@@ -48,6 +48,15 @@ describe("PromptPay QR", () => {
     expect(promptPayConfig(on)).toEqual({ id: "0812345678", accountName: "ร้าน ก", receiverHint: "" });
     expect(promptPayConfig({ ...on, promptpay: { ...on.promptpay, id: "12345" } })).toBeNull();
     expect(promptPayConfig({ ...on, promptpay: { ...on.promptpay, enabled: false } })).toBeNull();
+  });
+
+  it("lets an admin save a real PromptPay id and refuses anything that is not digits", () => {
+    const base = { enabled: true, account_name: "ร้าน ก", receiver_hint: "" };
+    expect(settingsSchemas.promptpay.safeParse({ ...base, id: "0812345678" }).success).toBe(true);
+    expect(settingsSchemas.promptpay.safeParse({ ...base, id: "1234567890123" }).success).toBe(true);
+    expect(settingsSchemas.promptpay.safeParse({ ...base, id: "" }).success).toBe(true);
+    expect(settingsSchemas.promptpay.safeParse({ ...base, id: "081-234-5678" }).success).toBe(false);
+    expect(settingsSchemas.promptpay.safeParse({ ...base, id: "dddd" }).success).toBe(false);
   });
 
   it("labels a prepaid membership differently from a recurring one", () => {
