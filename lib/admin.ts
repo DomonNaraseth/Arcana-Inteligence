@@ -40,16 +40,16 @@ export async function requireAdminPage(): Promise<AdminContext> {
 
 type AdminHandler = (admin: AdminContext, req: Request) => Promise<NextResponse>;
 
-/**
- * Wraps an admin API handler. Non-admins get a 404 so the surface is not
- * advertised; SQL permission errors (e.g. owner-only actions) become 403.
- */
 /** True when the caller is an owner or admin — decided in SQL, like every admin check. */
 export async function isAdminCaller(supabase: SupabaseClient): Promise<boolean> {
   const { data } = await supabase.rpc("arcana_admin_role");
   return data === "owner" || data === "admin";
 }
 
+/**
+ * Wraps an admin API handler. Non-admins get a 404 so the surface is not
+ * advertised; SQL permission errors (e.g. owner-only actions) become 403.
+ */
 export function adminRoute(handler: AdminHandler) {
   return async (req: Request): Promise<NextResponse> => {
     const admin = await getAdmin();

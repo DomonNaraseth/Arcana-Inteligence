@@ -4,8 +4,10 @@ import Link from "next/link";
 import { BarList } from "@/components/admin/BarList";
 import { NotifyTest } from "@/components/admin/NotifyTest";
 import { PaymentReview } from "@/components/admin/PaymentReview";
+import { PaymentWatcher } from "@/components/admin/PaymentWatcher";
 import { normalizePromptPayId } from "@/lib/billing/promptpay";
 import { slipVerifier } from "@/lib/billing/slip";
+import { summarizeWaiting } from "@/lib/billing/watch";
 import { requireAdminPage } from "@/lib/admin";
 import { billingStatus, formatThb } from "@/lib/billing/provider";
 import { formatThaiDate } from "@/lib/format";
@@ -115,6 +117,7 @@ export default async function AdminPaymentsPage() {
   const promptpayReady = settings.promptpay.enabled && Boolean(normalizePromptPayId(settings.promptpay.id));
   const autoSlip = Boolean(slipVerifier());
   const channels = notifyChannels();
+  const waitingNow = summarizeWaiting(rows);
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
   // transfers the customer says they made, then recent unpaid ones (they may still be paying)
   const toReview = rows.filter(
@@ -139,6 +142,10 @@ export default async function AdminPaymentsPage() {
           และตรวจยอดเงินกับสกุลเงินซ้ำก่อนเพิ่มเครดิตทุกครั้ง
         </p>
       </div>
+
+      {promptpayReady && (
+        <PaymentWatcher initialLatest={waitingNow.latestClaimAt} initialWaiting={waitingNow.waiting} />
+      )}
 
       <section className="panel p-6" aria-labelledby="pp-title">
         <div className="flex flex-wrap items-center justify-between gap-3">
