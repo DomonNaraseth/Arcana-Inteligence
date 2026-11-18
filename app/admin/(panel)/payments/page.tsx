@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BarList } from "@/components/admin/BarList";
 import { NotifyTest } from "@/components/admin/NotifyTest";
 import { SlipOkCheck } from "@/components/admin/SlipOkCheck";
+import { beamConfig } from "@/lib/billing/beam";
 import { PaymentReview } from "@/components/admin/PaymentReview";
 import { PaymentWatcher } from "@/components/admin/PaymentWatcher";
 import { normalizePromptPayId } from "@/lib/billing/promptpay";
@@ -117,6 +118,7 @@ export default async function AdminPaymentsPage() {
   const members = (subscriptions.data ?? []) as SubscriptionAdminRow[];
   const promptpayReady = settings.promptpay.enabled && Boolean(normalizePromptPayId(settings.promptpay.id));
   const autoSlip = Boolean(slipVerifier());
+  const beam = beamConfig();
   const channels = notifyChannels();
   const waitingNow = summarizeWaiting(rows);
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
@@ -165,6 +167,17 @@ export default async function AdminPaymentsPage() {
             <Link href="/admin/settings" className="text-gold hover:text-gold-light">
               ตั้งค่าระบบ
             </Link>
+          </Step>
+          <Step done={Boolean(beam?.live && beam.webhookKey)}>
+            (จ่ายอัตโนมัติ ไม่ต้องส่งสลิป) สมัคร Beam Checkout แล้วตั้ง{" "}
+            <code className="font-mono text-gold-light">BEAM_MERCHANT_ID</code>,{" "}
+            <code className="font-mono text-gold-light">BEAM_API_KEY</code>,{" "}
+            <code className="font-mono text-gold-light">BEAM_WEBHOOK_KEY</code> และ{" "}
+            <code className="font-mono text-gold-light">BEAM_ENV=production</code> ใน Vercel · ตั้ง Webhook ใน Beam ชี้มาที่{" "}
+            <code className="break-all font-mono text-gold-light">https://{host}/api/billing/beam/webhook</code> (เลือก charge.succeeded)
+            — ลูกค้าสแกน QR จ่ายแล้วเครดิตเข้าเองทันที
+            {beam && !beam.live && " · ตอนนี้เป็นคีย์ทดสอบ (Playground): เปิดให้ผู้ดูแลทดลองเท่านั้น"}
+            {beam && !beam.webhookKey && " · ยังไม่มี BEAM_WEBHOOK_KEY: ระบบยังตรวจจากหน้าชำระเงินได้ แต่ถ้าลูกค้าปิดหน้าไปก่อนจะต้องรอให้กลับมา"}
           </Step>
           <Step done={autoSlip}>
             (แนะนำ) สมัครบริการตรวจสลิป SlipOK โดยผูกบัญชีเดียวกัน แล้วตั้ง{" "}

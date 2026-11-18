@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { isAdminCaller } from "@/lib/admin";
 import { fail } from "@/lib/api";
+import { gatewayFor } from "@/lib/billing/gateway";
 import { toMinor } from "@/lib/billing/provider";
 import { promptPayConfig } from "@/lib/billing/promptpay";
 import { planLabel } from "@/lib/billing/service";
@@ -25,7 +27,9 @@ export async function POST(req: Request) {
     const { supabase, isGuest } = await getContext();
     const settings = await getSettings(supabase);
     if (!settings.credits.enabled) return fail("bad_request", "ระบบเครดิตยังไม่เปิดใช้งาน", 400);
-    if (!promptPayConfig(settings)) {
+    // automatic QR (gateway) or a transfer to the owner's own PromptPay
+    const gateway = gatewayFor(await isAdminCaller(supabase));
+    if (!gateway && !promptPayConfig(settings)) {
       return fail("billing_not_configured", "ระบบชำระเงินยังไม่เปิดให้บริการ (Configuration Missing)", 503);
     }
 
@@ -58,8 +62,8 @@ export async function POST(req: Request) {
       p_credits: item.credits,
       p_amount_minor: amountMinor,
       p_plan_id: item.planId,
-      // a development build never records real revenue
-      p_livemode: process.env.NODE_ENV === "production",
+      // a development build or a gateway test (playground) key never records real revenue
+      p_livemode: process.env.NODE_ENV === "production" && (gateway ? gateway.live : true),
       p_require_account: requireAccount,
     });
     if (error || typeof paymentId !== "string") {

@@ -20,6 +20,12 @@
       "port": 3002
     },
     {
+      "name": "arcana-dev-beam",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev-beam.mjs"],
+      "port": 3004
+    },
+    {
       "name": "arcana-dev-promptpay",
       "runtimeExecutable": "node",
       "runtimeArgs": ["scripts/dev-promptpay.mjs"],

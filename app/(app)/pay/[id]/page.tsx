@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
+import { headers } from "next/headers";
+import { AutoQrPay } from "@/components/billing/AutoQrPay";
 import { SlipUpload } from "@/components/billing/SlipUpload";
+import { isAdminCaller } from "@/lib/admin";
+import { ensureQr, gatewayFor, type GatewayQr } from "@/lib/billing/gateway";
 import { formatThb } from "@/lib/billing/provider";
 import {
   maskPromptPayId,
@@ -40,12 +44,28 @@ export default async function PayPage({ params }: { params: Promise<{ id: string
   const payment = paymentRes.data as MyPayment | null;
   if (!payment || payment.provider !== "promptpay") notFound();
 
+  const amount = formatThb(payment.amount_minor);
+
+  // automatic QR through the gateway when it is on: scan, pay, done — no slip
+  const gateway = payment.status === "pending" ? gatewayFor(await isAdminCaller(supabase)) : null;
+  let auto: GatewayQr | null = null;
+  let autoError = false;
+  if (gateway) {
+    try {
+      const h = await headers();
+      const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
+      auto = await ensureQr(supabase, gateway, payment, origin);
+    } catch (err) {
+      console.error("[arcana] gateway QR failed, falling back to transfer:", (err as Error).message);
+      autoError = true;
+    }
+  }
+
   const config = promptPayConfig(settings);
   const qr =
-    config && payment.status === "pending"
+    !auto && config && payment.status === "pending"
       ? await promptPayQrDataUrl(promptPayPayload(config.id, payment.amount_minor))
       : null;
-  const amount = formatThb(payment.amount_minor);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -76,12 +96,25 @@ export default async function PayPage({ params }: { params: Promise<{ id: string
             เริ่มรายการใหม่
           </Link>
         </section>
+      ) : auto ? (
+        <AutoQrPay
+          paymentId={payment.id}
+          initialQr={auto.qr}
+          initialExpiresAt={auto.expiresAt}
+          amountLabel={amount}
+          credits={payment.credits}
+        />
       ) : !config || !qr ? (
         <section className="panel border-amber-400/40 p-6 text-amber-100">
           ระบบชำระเงินยังไม่เปิดให้บริการ (Configuration Missing) — ยังไม่ต้องโอนเงิน
         </section>
       ) : (
         <>
+          {autoError && (
+            <p className="rounded-xl border border-amber-400/30 bg-amber-950/30 px-4 py-3 text-sm text-amber-100">
+              ระบบจ่ายอัตโนมัติขัดข้องชั่วคราว — ชำระด้วยการโอนและส่งสลิปด้านล่างได้ตามปกติ
+            </p>
+          )}
           <section className="panel grid gap-6 p-6 sm:grid-cols-[auto_1fr]" aria-labelledby="step1-title">
             <div className="mx-auto w-56 overflow-hidden rounded-xl bg-white p-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}

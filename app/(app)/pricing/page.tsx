@@ -5,6 +5,7 @@ import { BuyCredits } from "@/components/account/BuyCredits";
 import { GoogleSignInButton } from "@/components/account/GoogleSignInButton";
 import { ManageSubscriptionButton, SubscribeButton } from "@/components/account/MembershipActions";
 import { billingStatus, cardCheckoutOpen } from "@/lib/billing/provider";
+import { gatewayFor } from "@/lib/billing/gateway";
 import { promptPayConfig } from "@/lib/billing/promptpay";
 import type { MySubscription } from "@/lib/billing/service";
 import { getWallet } from "@/lib/credits";
@@ -46,9 +47,10 @@ export default async function PricingPage({
   const tier = wallet?.tier ?? "free";
   const managed = Boolean(subscription?.active && subscription.source === "stripe" && subscription.manageable);
   // PromptPay, once set up, is the way to pay; the card checkout is the fallback
+  // (the PromptPay route covers both an automatic gateway QR and a transfer to the owner's account)
   const via: "promptpay" | "stripe" | null = !c.enabled
     ? null
-    : promptPayConfig(settings)
+    : promptPayConfig(settings) || gatewayFor(role.data === "owner" || role.data === "admin")
       ? "promptpay"
       : cardOpen
         ? "stripe"
