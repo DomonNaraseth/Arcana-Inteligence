@@ -8,6 +8,8 @@ import type { DrawnCard, SpreadPosition, TarotCard } from "@/lib/tarot/types";
 import { ListenAll } from "@/components/speech/ListenAll";
 import { ListenButton } from "@/components/speech/ListenButton";
 import { useNarrator } from "@/components/speech/narrator";
+import { CardThumb } from "@/components/tarot/CardThumb";
+import { CardProse, CardProseProvider, type ProseCard } from "./CardProse";
 
 /** Read-aloud wiring shared by every section of one reading. */
 interface Narration {
@@ -62,7 +64,9 @@ function Bullets({ items }: { items: string[] }) {
       {items.map((x, i) => (
         <li key={i} className="flex gap-3">
           <span className="mt-[0.7em] h-1.5 w-1.5 shrink-0 rounded-full bg-gold" aria-hidden="true" />
-          <span>{x}</span>
+          <span>
+            <CardProse text={x} />
+          </span>
         </li>
       ))}
     </ul>
@@ -92,8 +96,32 @@ export function InterpretationView({
     parts,
     reading: n.status !== "idle" && n.scope?.startsWith("reading:") ? n.partId : null,
   };
+  const proseCards = useMemo<ProseCard[]>(
+    () =>
+      drawn.map((d) => {
+        const c = cardOf(d.cardId);
+        return { id: c.id, name: c.name, nameTh: c.nameTh, reversed: d.orientation === "reversed" };
+      }),
+    [drawn, cardOf],
+  );
+  const thumb = (position: number, className?: string, sizes?: string) => {
+    const d = byPosition.get(position);
+    if (!d) return null;
+    const c = cardOf(d.cardId);
+    return (
+      <CardThumb
+        image={c.image}
+        alt={`${c.name} (${c.nameTh})${d.orientation === "reversed" ? " กลับหัว" : ""}`}
+        orientation={d.orientation}
+        className={className}
+        sizes={sizes}
+        badge={position}
+      />
+    );
+  };
 
   return (
+    <CardProseProvider value={proseCards}>
     <article className="panel p-6 sm:p-10" aria-labelledby="reading-title">
       <header>
         <p className="eyebrow">Your Reading</p>
@@ -120,8 +148,15 @@ export function InterpretationView({
           </h3>
           <Listen id="direct" narration={narration} label="คำตอบโดยตรง" />
         </div>
-        <p className="mt-3 font-serif text-xl leading-[1.8] text-ivory sm:text-[22px]">
-          {data.direct_answer}
+        {data.cards.length <= 12 && (
+          <ul className="mt-4 flex flex-wrap gap-2" aria-label="ไพ่ที่เปิดได้">
+            {data.cards.map((c) => (
+              <li key={c.position}>{thumb(c.position, "w-10 sm:w-12", "48px")}</li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-4 font-serif text-lg leading-[1.85] text-ivory sm:text-xl">
+          <CardProse text={data.direct_answer} />
         </p>
       </div>
 
@@ -143,15 +178,28 @@ export function InterpretationView({
             {data.examples.map((e, i) => (
               <li key={i} className="border-l-2 border-gold/40 pl-4">
                 <p className="font-medium text-gold-light">{e.title}</p>
-                <p className="mt-1 text-[15px] leading-[1.85] text-ivory/90">{e.example}</p>
-                <p className="mt-2 flex flex-wrap gap-1.5">
+                <p className="mt-1 text-[15px] leading-[1.85] text-ivory/90">
+                  <CardProse text={e.example} />
+                </p>
+                <p className="mt-2.5 flex flex-wrap gap-2">
                   {e.positions.map((p) => {
                     const d = byPosition.get(p);
                     if (!d) return null;
                     const card = cardOf(d.cardId);
                     return (
-                      <span key={p} className="chip px-2.5 py-0.5 text-xs">
+                      <span
+                        key={p}
+                        className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/[0.06] py-1 pl-1 pr-3 text-xs text-ivory/90"
+                      >
+                        <CardThumb
+                          image={card.image}
+                          alt=""
+                          orientation={d.orientation}
+                          className="w-5 rounded-[3px] border-gold/30"
+                          sizes="24px"
+                        />
                         ใบที่ {p} · {card.nameTh}
+                        {d.orientation === "reversed" && <span className="text-ivory-dim">(กลับหัว)</span>}
                       </span>
                     );
                   })}
@@ -167,7 +215,9 @@ export function InterpretationView({
 
       <div className="mt-8 space-y-7">
         <Section id="overall" n="02" title="ภาพรวมสถานการณ์" narration={narration}>
-          <p>{data.overall_situation}</p>
+          <p>
+            <CardProse text={data.overall_situation} />
+          </p>
         </Section>
 
         <section className="border-t border-white/10 pt-7">
@@ -199,10 +249,8 @@ export function InterpretationView({
                   data-narration-part={id}
                   data-reading={narration.reading === id || undefined}
                 >
-                  <summary className="flex cursor-pointer list-none items-start gap-3 p-4 [&::-webkit-details-marker]:hidden">
-                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/50 font-serif text-sm text-gold">
-                      {c.position}
-                    </span>
+                  <summary className="flex cursor-pointer list-none items-center gap-4 p-4 [&::-webkit-details-marker]:hidden">
+                    {thumb(c.position, "w-12 sm:w-14 group-open:hidden", "64px")}
                     <span className="min-w-0 flex-1">
                       <span className="block text-xs text-ivory-dim">{pos?.nameTh}</span>
                       <span className="block font-medium text-gold-light">
@@ -211,14 +259,22 @@ export function InterpretationView({
                           {card?.nameTh} · {d?.orientation === "reversed" ? "กลับหัว" : "ตั้งตรง"}
                         </span>
                       </span>
-                      <span className="mt-1 block text-sm text-ivory">{c.headline}</span>
+                      <span className="mt-1 block text-sm text-ivory">
+                        <CardProse text={c.headline} />
+                      </span>
                     </span>
                     <span className="mt-1 text-gold transition-transform group-open:rotate-180" aria-hidden="true">
                       ▾
                     </span>
                   </summary>
-                  <div className="border-t border-white/10 px-4 pb-4 pt-3">
-                    <p className="text-[15px] text-ivory/90">{c.interpretation}</p>
+                  <div className="border-t border-white/10 px-4 pb-4 pt-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                      {/* the card itself, larger, while its row is open */}
+                      <div className="mx-auto sm:mx-0">{thumb(c.position, "w-36 sm:w-32", "160px")}</div>
+                      <p className="flex-1 text-[15px] leading-[1.9] text-ivory/90">
+                        <CardProse text={c.interpretation} />
+                      </p>
+                    </div>
                     <div className="mt-3 flex justify-end">
                       <Listen
                         id={id}
@@ -234,15 +290,19 @@ export function InterpretationView({
         </section>
 
         <Section id="relationships" n="04" title="ความสัมพันธ์ระหว่างไพ่" narration={narration}>
-          <p>{data.card_relationships}</p>
-          <p className="mt-4 rounded-xl border border-white/10 bg-midnight/40 p-4 text-sm text-ivory-dim">
+          <p>
+            <CardProse text={data.card_relationships} />
+          </p>
+          <p className="mt-4 rounded-xl border border-white/10 bg-midnight/40 p-4 text-sm leading-[1.85] text-ivory-dim">
             <span className="text-gold">พลังงานโดยรวม — </span>
-            {data.energy_analysis}
+            <CardProse text={data.energy_analysis} />
           </p>
         </Section>
 
         <Section id="hidden" n="05" title="สิ่งที่ซ่อนอยู่" icon={Eye} narration={narration}>
-          <p>{data.hidden_factors}</p>
+          <p>
+            <CardProse text={data.hidden_factors} />
+          </p>
         </Section>
 
         <Section id="opportunities" n="06" title="โอกาส" icon={Sprout} narration={narration}>
@@ -254,7 +314,9 @@ export function InterpretationView({
         </Section>
 
         <Section id="future" n="08" title="แนวโน้มข้างหน้า" icon={Compass} narration={narration}>
-          <p>{data.future_direction}</p>
+          <p>
+            <CardProse text={data.future_direction} />
+          </p>
         </Section>
 
         <Section id="advice" n="09" title="คำแนะนำ" icon={Lightbulb} narration={narration}>
@@ -264,7 +326,9 @@ export function InterpretationView({
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold/15 text-xs text-gold">
                   {i + 1}
                 </span>
-                <span>{a}</span>
+                <span>
+                  <CardProse text={a} />
+                </span>
               </li>
             ))}
           </ol>
@@ -320,7 +384,9 @@ export function InterpretationView({
             <h3 className="pt-3 text-sm font-medium tracking-wide text-gold">บทสรุปจากไพ่</h3>
             <Listen id="conclusion" narration={narration} label="บทสรุปจากไพ่" />
           </div>
-          <p className="mt-3 font-serif text-lg leading-[1.85] text-ivory">{data.conclusion}</p>
+          <p className="mt-3 font-serif text-lg leading-[1.85] text-ivory">
+            <CardProse text={data.conclusion} />
+          </p>
         </section>
 
         {quality && !quality.passed && (
@@ -332,5 +398,6 @@ export function InterpretationView({
         )}
       </div>
     </article>
+    </CardProseProvider>
   );
 }
