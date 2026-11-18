@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { BarList } from "@/components/admin/BarList";
 import { NotifyTest } from "@/components/admin/NotifyTest";
+import { SlipOkCheck } from "@/components/admin/SlipOkCheck";
 import { PaymentReview } from "@/components/admin/PaymentReview";
 import { PaymentWatcher } from "@/components/admin/PaymentWatcher";
 import { normalizePromptPayId } from "@/lib/billing/promptpay";
@@ -181,6 +182,7 @@ export default async function AdminPaymentsPage() {
             {channels.length > 0 && ` (ใช้งานอยู่: ${channels.map((c) => (c === "line" ? "LINE" : "Telegram")).join(", ")})`}
           </Step>
         </ol>
+        {autoSlip && <SlipOkCheck />}
         {channels.length > 0 && <NotifyTest />}
       </section>
 

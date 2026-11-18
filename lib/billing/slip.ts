@@ -151,6 +151,58 @@ function createSlipOkVerifier(branchId: string, apiKey: string): SlipVerifier {
   };
 }
 
+export interface SlipOkHealth {
+  configured: boolean;
+  /** the quota call answered: the branch id and API key are accepted */
+  connected: boolean;
+  quota?: number;
+  endDate?: string | null;
+  /** SlipOK's own code and message when something is refused (never the key) */
+  code?: number;
+  message?: string;
+  /** what the service answers to a QR text that is not a slip — 1008 means requests reach it intact */
+  probe?: { code?: number; message?: string };
+}
+
+/**
+ * Asks SlipOK for the branch's remaining quota (free: no slip is checked) and
+ * sends one QR text that is not a slip. Used by Admin → Payments to show
+ * whether automatic slip checking really works, without exposing the key.
+ */
+export async function slipOkHealth(): Promise<SlipOkHealth> {
+  const branch = process.env.SLIPOK_BRANCH_ID?.trim();
+  const key = process.env.SLIPOK_API_KEY?.trim();
+  if (!branch || !key) return { configured: false, connected: false };
+  const base = `https://api.slipok.com/api/line/apikey/${encodeURIComponent(branch)}`;
+  const read = async (res: Response) =>
+    (await res.json().catch(() => null)) as
+      | { success?: boolean; code?: number; message?: string; data?: { quota?: number; endDate?: string | null } }
+      | null;
+  try {
+    const q = await read(await fetch(`${base}/quota`, { headers: { "x-authorization": key }, cache: "no-store" }));
+    const health: SlipOkHealth = {
+      configured: true,
+      connected: Boolean(q?.success),
+      quota: q?.data?.quota,
+      endDate: q?.data?.endDate ?? null,
+      code: q?.code,
+      message: q?.message,
+    };
+    const p = await read(
+      await fetch(base, {
+        method: "POST",
+        headers: { "x-authorization": key, "content-type": "application/json" },
+        body: JSON.stringify({ data: "ARCANA-HEALTH-CHECK" }),
+        cache: "no-store",
+      }),
+    );
+    health.probe = { code: p?.code, message: p?.message };
+    return health;
+  } catch (err) {
+    return { configured: true, connected: false, message: (err as Error).message };
+  }
+}
+
 /** null when no slip-verification service is configured — transfers are then approved by an admin. */
 export function slipVerifier(): SlipVerifier | null {
   const branch = process.env.SLIPOK_BRANCH_ID?.trim();
