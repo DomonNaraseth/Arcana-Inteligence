@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { fail } from "@/lib/api";
+import { formatThb } from "@/lib/billing/provider";
+import { notifyAdmin } from "@/lib/notify";
 import { ConfigError, getContext } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
@@ -30,6 +32,15 @@ export async function POST(req: Request) {
       return fail("server_error", "แจ้งโอนไม่สำเร็จ กรุณาลองใหม่", 500);
     }
     if (data !== true) return fail("not_found", "ไม่พบรายการที่รอชำระเงิน", 404);
+
+    // no customer details in the notice: amount, package and where to look
+    const { data: payment } = await supabase.rpc("arcana_my_payment", { p_id: parsed.data.paymentId });
+    const row = payment as { amount_minor: number; package_name: string } | null;
+    if (row) {
+      await notifyAdmin(
+        `ARCANA: มีลูกค้าแจ้งโอน ${formatThb(row.amount_minor)} (${row.package_name}) — ตรวจยอดเข้าแล้วอนุมัติที่ ${new URL(req.url).origin}/admin/payments`,
+      );
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof ConfigError) return fail("config_missing", "ระบบฐานข้อมูลยังไม่ได้ตั้งค่า", 503);

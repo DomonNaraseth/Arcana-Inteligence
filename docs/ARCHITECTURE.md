@@ -266,6 +266,8 @@ Migration: `supabase/migrations/0007_arcana_promptpay.sql`. Code: `lib/billing/p
 
 **What each party must set up:** the PromptPay id, account name and seller contact are runtime settings (`promptpay`, `business`), entered in Admin → Settings. The slip service keys are environment variables. Without the slip service every transfer waits for manual approval.
 
+**Owner notifications** (`lib/notify.ts`): when a customer reports a transfer, and when a slip is confirmed automatically, a short notice goes to every configured channel — LINE Messaging API push (`LINE_CHANNEL_ACCESS_TOKEN`, `LINE_ADMIN_USER_ID`) and/or Telegram (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`). It carries the amount, the package and a link to Admin → Payments, never customer details, and a failed notice never fails the customer's request. Admin → Payments has a test button.
+
 **Not automated:** refunds (transfer back from the banking app, then correct credits in Admin → Users), renewal reminders, expiry of unpaid PromptPay payments.
 
 `node scripts/dev-promptpay.mjs` runs the app on :3003 with a made-up PromptPay id; payments created by a development build are flagged as test.

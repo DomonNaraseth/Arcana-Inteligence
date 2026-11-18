@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { fail } from "@/lib/api";
+import { formatThb } from "@/lib/billing/provider";
+import { notifyAdmin } from "@/lib/notify";
 import { promptPayConfig } from "@/lib/billing/promptpay";
 import { SLIP_FAILURE_TH, SlipError, checkSlip, slipVerifier, type SlipFailure } from "@/lib/billing/slip";
 import { getWallet } from "@/lib/credits";
@@ -95,6 +97,12 @@ export async function POST(req: Request) {
     if (!result.ok) {
       const reason = (["slip_used", "amount_mismatch", "slip_too_old"] as const).find((r) => r === result.reason);
       return reason ? reject(reason) : fail("bad_request", "ไม่สามารถใช้สลิปนี้กับรายการนี้ได้", 422);
+    }
+
+    if ((result.credited ?? 0) > 0) {
+      await notifyAdmin(
+        `ARCANA: รับชำระ ${formatThb(row.amount_minor)} (${row.package_name}) — ตรวจสลิปผ่านอัตโนมัติ เพิ่มเครดิตแล้ว`,
+      );
     }
 
     const wallet = await getWallet(supabase);

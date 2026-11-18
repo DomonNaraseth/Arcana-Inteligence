@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { BarList } from "@/components/admin/BarList";
+import { NotifyTest } from "@/components/admin/NotifyTest";
 import { PaymentReview } from "@/components/admin/PaymentReview";
 import { normalizePromptPayId } from "@/lib/billing/promptpay";
 import { slipVerifier } from "@/lib/billing/slip";
 import { requireAdminPage } from "@/lib/admin";
 import { billingStatus, formatThb } from "@/lib/billing/provider";
 import { formatThaiDate } from "@/lib/format";
+import { notifyChannels } from "@/lib/notify";
 import { getSettings } from "@/lib/settings";
 
 export const metadata: Metadata = { title: "การชำระเงิน" };
@@ -112,6 +114,7 @@ export default async function AdminPaymentsPage() {
   const members = (subscriptions.data ?? []) as SubscriptionAdminRow[];
   const promptpayReady = settings.promptpay.enabled && Boolean(normalizePromptPayId(settings.promptpay.id));
   const autoSlip = Boolean(slipVerifier());
+  const channels = notifyChannels();
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
   // transfers the customer says they made, then recent unpaid ones (they may still be paying)
   const toReview = rows.filter(
@@ -162,7 +165,16 @@ export default async function AdminPaymentsPage() {
             — เครดิตจะเข้าอัตโนมัติเมื่อลูกค้าส่งสลิป ถ้ายังไม่ตั้ง คุณต้องกดอนุมัติรายการด้านล่างเอง
           </Step>
           <Step done={settings.credits.enabled}>เปิดใช้ระบบเครดิต</Step>
+          <Step done={channels.length > 0}>
+            ตั้งค่าการแจ้งเตือนเมื่อมีลูกค้าแจ้งโอน — LINE:{" "}
+            <code className="font-mono text-gold-light">LINE_CHANNEL_ACCESS_TOKEN</code> +{" "}
+            <code className="font-mono text-gold-light">LINE_ADMIN_USER_ID</code> หรือ Telegram:{" "}
+            <code className="font-mono text-gold-light">TELEGRAM_BOT_TOKEN</code> +{" "}
+            <code className="font-mono text-gold-light">TELEGRAM_CHAT_ID</code> ใน Environment Variables ของ Vercel
+            {channels.length > 0 && ` (ใช้งานอยู่: ${channels.map((c) => (c === "line" ? "LINE" : "Telegram")).join(", ")})`}
+          </Step>
         </ol>
+        {channels.length > 0 && <NotifyTest />}
       </section>
 
       {toReview.length > 0 && (
