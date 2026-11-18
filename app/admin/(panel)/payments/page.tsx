@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { BarList } from "@/components/admin/BarList";
+import { PaymentReview } from "@/components/admin/PaymentReview";
+import { normalizePromptPayId } from "@/lib/billing/promptpay";
+import { slipVerifier } from "@/lib/billing/slip";
 import { requireAdminPage } from "@/lib/admin";
 import { billingStatus, formatThb } from "@/lib/billing/provider";
 import { formatThaiDate } from "@/lib/format";
@@ -21,6 +24,8 @@ interface PaymentAdminRow {
   livemode: boolean;
   provider: string;
   provider_payment_ref: string | null;
+  kind?: string;
+  claim?: { at: string; note: string } | null;
   created_at: string;
   paid_at: string | null;
 }
@@ -105,6 +110,16 @@ export default async function AdminPaymentsPage() {
   ]);
   const rows = (payments.data ?? []) as PaymentAdminRow[];
   const members = (subscriptions.data ?? []) as SubscriptionAdminRow[];
+  const promptpayReady = settings.promptpay.enabled && Boolean(normalizePromptPayId(settings.promptpay.id));
+  const autoSlip = Boolean(slipVerifier());
+  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  // transfers the customer says they made, then recent unpaid ones (they may still be paying)
+  const toReview = rows.filter(
+    (p) =>
+      p.provider === "promptpay" &&
+      p.status === "pending" &&
+      (p.claim || new Date(p.created_at).getTime() > dayAgo),
+  );
   const activeMembers = members.filter((m) => m.active);
   const rev = revenue.data as Revenue | null;
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
@@ -122,10 +137,77 @@ export default async function AdminPaymentsPage() {
         </p>
       </div>
 
+      <section className="panel p-6" aria-labelledby="pp-title">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="pp-title" className="text-xl font-semibold">
+            PromptPay (โอนเข้าบัญชีของคุณโดยตรง)
+          </h2>
+          {promptpayReady ? (
+            <span className="chip">เปิดใช้งาน</span>
+          ) : (
+            <span className="chip border-amber-400/40 bg-amber-950/30 text-amber-100">ยังไม่ได้ตั้งค่า</span>
+          )}
+        </div>
+        <ol className="mt-5 space-y-3 text-sm">
+          <Step done={promptpayReady}>
+            ใส่หมายเลข PromptPay และชื่อบัญชี แล้วเปิดใช้งานที่{" "}
+            <Link href="/admin/settings" className="text-gold hover:text-gold-light">
+              ตั้งค่าระบบ
+            </Link>
+          </Step>
+          <Step done={autoSlip}>
+            (แนะนำ) สมัครบริการตรวจสลิป SlipOK โดยผูกบัญชีเดียวกัน แล้วตั้ง{" "}
+            <code className="font-mono text-gold-light">SLIPOK_BRANCH_ID</code> และ{" "}
+            <code className="font-mono text-gold-light">SLIPOK_API_KEY</code> ใน Environment Variables ของ Vercel
+            — เครดิตจะเข้าอัตโนมัติเมื่อลูกค้าส่งสลิป ถ้ายังไม่ตั้ง คุณต้องกดอนุมัติรายการด้านล่างเอง
+          </Step>
+          <Step done={settings.credits.enabled}>เปิดใช้ระบบเครดิต</Step>
+        </ol>
+      </section>
+
+      {toReview.length > 0 && (
+        <section className="panel-gold p-6" aria-labelledby="review-title">
+          <h2 id="review-title" className="text-xl font-semibold">
+            รอตรวจสอบการโอน ({toReview.length})
+          </h2>
+          <p className="mt-1 text-sm text-ivory-dim">
+            ตรวจยอดเงินเข้าในแอปธนาคารก่อนกดอนุมัติทุกครั้ง — การอนุมัติจะเพิ่มเครดิตทันทีและถูกบันทึกใน audit log
+          </p>
+          <ul className="mt-4 divide-y divide-white/10">
+            {toReview.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-center justify-between gap-4 py-4">
+                <div className="min-w-0 text-sm">
+                  <p className="text-ivory">
+                    <span className="font-sans text-lg font-semibold tabular-nums text-gold-light">
+                      {formatThb(p.amount_minor)}
+                    </span>{" "}
+                    · {p.package_name} · {p.credits} เครดิต
+                    {!p.livemode && <span className="ml-2 text-xs text-ivory-dim">(ทดสอบ)</span>}
+                  </p>
+                  <p className="text-ivory-dim">
+                    {p.email ?? "ผู้เยี่ยมชม"} · <span className="font-mono text-xs">{p.ref}</span> · สร้างเมื่อ{" "}
+                    {formatThaiDate(p.created_at, true)}
+                  </p>
+                  {p.claim ? (
+                    <p className="mt-1 text-ivory">
+                      <span className="text-gold">ลูกค้าแจ้งโอน:</span> {p.claim.note}{" "}
+                      <span className="text-xs text-ivory-dim">({formatThaiDate(p.claim.at, true)})</span>
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-ivory-dim">ลูกค้ายังไม่ได้แจ้งโอนหรือส่งสลิป</p>
+                  )}
+                </div>
+                <PaymentReview paymentId={p.id} summary={`${formatThb(p.amount_minor)} ของ ${p.email ?? p.ref}`} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className="panel p-6" aria-labelledby="setup-title">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="setup-title" className="text-xl font-semibold">
-            สถานะการเชื่อมต่อ
+            สถานะการเชื่อมต่อ Stripe (บัตร — ใช้ทดสอบเท่านั้น)
           </h2>
           {!status.configured ? (
             <span className="chip border-amber-400/40 bg-amber-950/30 text-amber-100">ยังไม่ได้ตั้งค่า</span>
@@ -293,7 +375,7 @@ export default async function AdminPaymentsPage() {
                   <th scope="col" className="px-4 py-3 font-medium">แพ็กเกจ</th>
                   <th scope="col" className="px-4 py-3 text-right font-medium">ยอดเงิน</th>
                   <th scope="col" className="px-4 py-3 font-medium">สถานะ</th>
-                  <th scope="col" className="px-4 py-3 font-medium">อ้างอิง Stripe</th>
+                  <th scope="col" className="px-4 py-3 font-medium">ช่องทาง / อ้างอิง</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -315,7 +397,10 @@ export default async function AdminPaymentsPage() {
                       </span>
                       {!p.livemode && <span className="ml-2 text-xs text-ivory-dim">(ทดสอบ)</span>}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-ivory-dim">{p.provider_payment_ref ?? "–"}</td>
+                    <td className="px-4 py-2.5 text-xs text-ivory-dim">
+                      {p.provider === "promptpay" ? "PromptPay" : "Stripe"}
+                      <span className="block font-mono">{p.provider_payment_ref ?? "–"}</span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -323,11 +408,11 @@ export default async function AdminPaymentsPage() {
           </div>
         )}
         <p className="mt-3 text-xs text-ivory-dim">
-          การคืนเงินทำในแดชบอร์ดของ Stripe แล้วปรับเครดิตของผู้ใช้ที่หน้า{" "}
+          การคืนเงิน PromptPay ทำโดยโอนกลับจากแอปธนาคารของคุณ แล้วปรับเครดิตของผู้ใช้ที่หน้า{" "}
           <Link href="/admin/users" className="text-gold hover:text-gold-light">
             ผู้ใช้และเครดิต
           </Link>{" "}
-          (ยังไม่ได้เชื่อมการคืนเงินอัตโนมัติ)
+          (การคืนเงินของ PromptPay ไม่ปรับเครดิตอัตโนมัติ)
         </p>
       </section>
     </div>

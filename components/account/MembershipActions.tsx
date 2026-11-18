@@ -20,10 +20,13 @@ export function SubscribeButton({
   planId,
   label,
   highlighted,
+  via = "stripe",
 }: {
   planId: "basic" | "premium";
   label: string;
   highlighted?: boolean;
+  /** a recurring card subscription, or a prepaid 30-day membership by PromptPay */
+  via?: "stripe" | "promptpay";
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +35,11 @@ export function SubscribeButton({
     setBusy(true);
     setError(null);
     try {
-      await redirectTo("/api/billing/subscribe", { planId }, "เริ่มการสมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่");
+      await redirectTo(
+        via === "promptpay" ? "/api/billing/promptpay" : "/api/billing/subscribe",
+        { planId },
+        "เริ่มการสมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่",
+      );
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);

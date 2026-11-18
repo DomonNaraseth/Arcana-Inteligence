@@ -18,6 +18,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["scripts/dev-stripe-sandbox.mjs"],
       "port": 3002
+    },
+    {
+      "name": "arcana-dev-promptpay",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev-promptpay.mjs"],
+      "port": 3003
     }
   ]
 }

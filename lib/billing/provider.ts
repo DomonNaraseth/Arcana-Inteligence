@@ -160,6 +160,17 @@ export function billingStatus(): {
   };
 }
 
+/**
+ * Whether the card checkout may be offered to this visitor. A test-mode key on
+ * the production site takes test cards, which cost nothing — so there it is
+ * open to admins only, or anyone could give themselves credits.
+ */
+export function cardCheckoutOpen(isAdmin: boolean): boolean {
+  const status = billingStatus();
+  if (!status.configured) return false;
+  return status.livemode || isAdmin || process.env.NODE_ENV !== "production";
+}
+
 /** THB price → satang, rounded to the nearest satang. */
 export function toMinor(priceThb: number): number {
   return Math.round(priceThb * 100);

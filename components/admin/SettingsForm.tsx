@@ -157,6 +157,13 @@ export function SettingsForm({ initial, recommended, role, owners, admins, sprea
   const [daily, setDaily] = useState(initial.daily);
   const planSaver = useSaver();
 
+  // ── PromptPay & seller identity ──
+  const [promptpay, setPromptpay] = useState(initial.promptpay);
+  const [business, setBusiness] = useState(initial.business);
+  const promptpaySaver = useSaver();
+  const promptpayDigits = promptpay.id.replace(/\D/g, "");
+  const promptpayIdOk = /^0\d{9}$/.test(promptpayDigits) || /^\d{13}$/.test(promptpayDigits) || /^\d{15}$/.test(promptpayDigits);
+
   function applyRecommended() {
     // fills the form only — nothing is stored until each section is saved
     setCredits({ ...recommended.credits, enabled: credits.enabled });
@@ -430,6 +437,100 @@ export function SettingsForm({ initial, recommended, role, owners, admins, sprea
           <Num label="รางวัลเมื่อครบรอบ" value={daily.streak_reward} onChange={(n) => setDaily({ ...daily, streak_reward: n })} suffix="เครดิต" />
         </div>
         <p className="mt-2 text-xs text-ivory-dim">ตั้งรอบหรือรางวัลเป็น 0 เพื่อปิดรางวัล (ให้เฉพาะบัญชีที่เข้าสู่ระบบ)</p>
+      </Section>
+
+      <Section
+        title="PromptPay และข้อมูลผู้ขาย"
+        description="ลูกค้าโอนเข้าบัญชีของคุณโดยตรงด้วย QR ที่ระบุยอดไว้แล้ว ชื่อบัญชีและช่องทางติดต่อจะแสดงในหน้าชำระเงินและหน้าข้อตกลง"
+        state={promptpaySaver.state}
+        disabled={promptpay.enabled && !promptpayIdOk}
+        onSave={() =>
+          promptpaySaver.run(async () => {
+            await postJson("/api/admin/settings", { key: "promptpay", value: { ...promptpay, id: promptpayDigits } });
+            await postJson("/api/admin/settings", { key: "business", value: business });
+          })
+        }
+      >
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={promptpay.enabled}
+            onChange={(e) => setPromptpay({ ...promptpay, enabled: e.target.checked })}
+            className="h-5 w-5 accent-[#C6A15B]"
+          />
+          <span className="text-ivory">เปิดรับชำระเงินด้วย PromptPay</span>
+        </label>
+        <div className="mt-4 grid gap-5 sm:grid-cols-2">
+          <label className="block">
+            <span className="text-sm text-ivory-dim">หมายเลข PromptPay (เบอร์มือถือ 10 หลัก หรือเลขบัตรประชาชน/ผู้เสียภาษี 13 หลัก)</span>
+            <input
+              value={promptpay.id}
+              onChange={(e) => setPromptpay({ ...promptpay, id: e.target.value })}
+              inputMode="numeric"
+              autoComplete="off"
+              className="field mt-1 py-2 text-sm tabular-nums"
+            />
+            {promptpay.id && !promptpayIdOk && (
+              <span className="mt-1 block text-xs text-amber-200">จำนวนหลักไม่ถูกต้อง — QR จะใช้ไม่ได้</span>
+            )}
+          </label>
+          <label className="block">
+            <span className="text-sm text-ivory-dim">ชื่อบัญชีผู้รับ (ตามที่แอปธนาคารแสดง)</span>
+            <input
+              value={promptpay.account_name}
+              onChange={(e) => setPromptpay({ ...promptpay, account_name: e.target.value })}
+              className="field mt-1 py-2 text-sm"
+            />
+          </label>
+          <label className="block">
+            <span className="text-sm text-ivory-dim">คำที่ต้องพบในชื่อผู้รับบนสลิป (ไม่บังคับ เช่น นามสกุล หรือเลขท้ายบัญชี 4 หลัก)</span>
+            <input
+              value={promptpay.receiver_hint}
+              onChange={(e) => setPromptpay({ ...promptpay, receiver_hint: e.target.value })}
+              className="field mt-1 py-2 text-sm"
+            />
+          </label>
+        </div>
+        <p className="mt-2 text-xs text-ivory-dim">
+          หลังบันทึก เปิดหน้าแพ็กเกจแล้วลองสแกน QR ด้วยแอปธนาคารของคุณ เพื่อดูว่าชื่อบัญชีที่ขึ้นถูกต้องก่อนให้ลูกค้าใช้
+        </p>
+
+        <h3 className="mt-6 text-sm font-medium text-gold">ข้อมูลผู้ขายและช่องทางติดต่อ (แสดงต่อสาธารณะ)</h3>
+        <div className="mt-3 grid gap-5 sm:grid-cols-2">
+          <label className="block">
+            <span className="text-sm text-ivory-dim">ชื่อผู้ให้บริการ</span>
+            <input
+              value={business.name}
+              onChange={(e) => setBusiness({ ...business, name: e.target.value })}
+              className="field mt-1 py-2 text-sm"
+            />
+          </label>
+          <label className="block">
+            <span className="text-sm text-ivory-dim">อีเมลติดต่อ</span>
+            <input
+              type="email"
+              value={business.contact_email}
+              onChange={(e) => setBusiness({ ...business, contact_email: e.target.value })}
+              className="field mt-1 py-2 text-sm"
+            />
+          </label>
+          <label className="block">
+            <span className="text-sm text-ivory-dim">LINE ID</span>
+            <input
+              value={business.contact_line}
+              onChange={(e) => setBusiness({ ...business, contact_line: e.target.value })}
+              className="field mt-1 py-2 text-sm"
+            />
+          </label>
+          <label className="block">
+            <span className="text-sm text-ivory-dim">ที่อยู่ (ไม่บังคับ)</span>
+            <input
+              value={business.address}
+              onChange={(e) => setBusiness({ ...business, address: e.target.value })}
+              className="field mt-1 py-2 text-sm"
+            />
+          </label>
+        </div>
       </Section>
 
       <Section

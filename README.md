@@ -23,6 +23,8 @@
 | Reading History + ค้นหา, Tarot Journal, คลังไพ่ | ✅ |
 | ไพ่ประจำวัน `/daily` — เปิดได้ฟรีวันละใบ (สุ่มด้วย CSPRNG, ไม่เปลี่ยนทั้งวัน), สารประจำวันจาก AI ที่ใช้ร่วมกันต่อไพ่ต่อวัน, นับวันต่อเนื่อง + รางวัลเครดิต | ✅ |
 | หน้าแพ็กเกจ `/pricing` — Free / Plus / Premium + แพ็กเติมเครดิต | ✅ |
+| รับเงินจริงด้วย PromptPay — QR ระบุยอด, ตรวจสลิปอัตโนมัติ (SlipOK) หรืออนุมัติเองใน Admin, สมาชิก 30 วันแบบจ่ายล่วงหน้า | ✅ โค้ดพร้อม — ต้องใส่หมายเลข PromptPay ใน Admin ก่อน; การตรวจสลิปอัตโนมัติยังไม่ได้ทดสอบกับบริการจริง |
+| หน้าข้อตกลง นโยบายคืนเงิน ความเป็นส่วนตัว และช่องทางติดต่อ `/terms` | ✅ (ข้อความเป็นแม่แบบ เจ้าของควรตรวจทาน) |
 | สมาชิกรายเดือนผ่าน Stripe Billing (เติมเครดิตทุกรอบบิล, ต่ออายุ/ยกเลิกอัตโนมัติ, Customer Portal, ดึงเครดิตคืนเมื่อคืนเงินแพ็กเติมเครดิต) | ✅ โค้ดพร้อม ทดสอบกับ Stripe sandbox แล้ว — ต้องใส่กุญแจ Stripe ก่อนจึงใช้งานได้ |
 | Guest session (ใช้ได้ทันที) + เข้าสู่ระบบด้วย Google / อีเมล (Supabase Auth) + ย้ายประวัติ guest → บัญชี | ✅ (Google ต้องเพิ่ม Redirect URL ใน Supabase — ดูหัวข้อ "เข้าสู่ระบบด้วย Google") |
 | บันทึก (ปักหมุด) การอ่านไพ่ + ตัวกรอง "ที่บันทึกไว้" ในประวัติ + พิมพ์/บันทึกเป็น PDF | ✅ |
@@ -102,7 +104,17 @@ https://<โดเมนของแอป>/**
 
 การอ่านไพ่ใช้ 2 / 3 / 4 เครดิตตามขนาดสเปรด ต้นทุน AI ต่อการอ่านหนึ่งครั้งราว ฿3–4.5 จึงไม่แจกการอ่านฟรีแบบต่อเนื่อง — ใช้ไพ่ประจำวัน (ต้นทุนเกือบศูนย์) เป็นเหตุผลให้ผู้ใช้ฟรีกลับมาทุกวัน เหตุผลและตัวเลขอยู่ใน docs/ARCHITECTURE.md หัวข้อ 6e
 
-## การชำระเงิน (Stripe)
+## การรับเงินจริง: PromptPay
+
+Stripe ห้ามใช้บัญชีในประเทศไทยกับบริการดูดวง (ดู docs/ARCHITECTURE.md หัวข้อ 6f) การรับเงินจริงจึงใช้ PromptPay โอนเข้าบัญชีของเจ้าของโดยตรง:
+
+1. Admin → ตั้งค่าระบบ → **PromptPay และข้อมูลผู้ขาย**: ใส่หมายเลข PromptPay ชื่อบัญชี ช่องทางติดต่อ แล้วเปิดใช้งาน
+2. (แนะนำ) สมัครบริการตรวจสลิป SlipOK ผูกบัญชีเดียวกัน แล้วตั้ง `SLIPOK_BRANCH_ID` และ `SLIPOK_API_KEY` บน Vercel เพื่อให้เครดิตเข้าอัตโนมัติเมื่อลูกค้าส่งสลิป — ถ้าไม่ตั้ง ต้องกดอนุมัติรายการเองที่ Admin → การชำระเงิน
+3. ลองสแกน QR จากหน้าแพ็กเกจด้วยแอปธนาคารของคุณเองก่อน เพื่อดูว่าชื่อบัญชีผู้รับถูกต้อง
+
+สมาชิกที่ซื้อผ่าน PromptPay เป็นแบบจ่ายล่วงหน้า 30 วัน ไม่ตัดเงินอัตโนมัติ ทดสอบบนเครื่องด้วย `node scripts/dev-promptpay.mjs` (พอร์ต 3003, หมายเลข PromptPay สมมติ — ห้ามโอนเงินจริง)
+
+## การชำระเงินด้วยบัตร (Stripe — ใช้ทดสอบเท่านั้น)
 
 1. สมัคร Stripe แล้วสร้าง Restricted key ที่ให้สิทธิ์ Checkout Sessions, Products, Customer portal (Write) และ Subscriptions (Read) นำมาตั้งเป็น `STRIPE_SECRET_KEY` แบบ Sensitive บน Vercel (เริ่มด้วย `rk_test_…` ของ sandbox เพื่อทดสอบ — ใช้ `sk_…` ได้เช่นกันแต่สิทธิ์กว้างกว่าที่จำเป็น)
 2. ใน Stripe → Developers → Webhooks สร้าง endpoint `https://<โดเมน>/api/billing/webhook` เลือก event: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `charge.refunded`, `charge.dispute.created` แล้วนำ signing secret มาตั้งเป็น `STRIPE_WEBHOOK_SECRET`
@@ -124,7 +136,7 @@ STRIPE_SANDBOX=1 npx vitest run tests/integration
 
 ## ฐานข้อมูล
 
-รัน `supabase/migrations/0001_arcana_init.sql`, `0002_arcana_admin_credits.sql`, `0003_arcana_kb_overrides.sql`, `0004_arcana_payments.sql`, `0005_arcana_saved_readings.sql` และ `0006_arcana_daily_subscriptions.sql` ตามลำดับ แล้วบันทึก hash ของ server secret (และ `admin_key_sha256`, `owner_emails` สำหรับ Admin):
+รัน `supabase/migrations/0001_arcana_init.sql`, `0002_arcana_admin_credits.sql`, `0003_arcana_kb_overrides.sql`, `0004_arcana_payments.sql`, `0005_arcana_saved_readings.sql`, `0006_arcana_daily_subscriptions.sql` และ `0007_arcana_promptpay.sql` ตามลำดับ แล้วบันทึก hash ของ server secret (และ `admin_key_sha256`, `owner_emails` สำหรับ Admin):
 
 ```sql
 insert into public.arcana_server_config (key, value)

@@ -16,6 +16,7 @@ export function BuyCredits({
   testMode,
   needsAccount,
   isGuest,
+  via = "stripe",
 }: {
   packages: Package[];
   /** a payment provider is configured */
@@ -24,6 +25,8 @@ export function BuyCredits({
   /** purchases require a signed-in account and the visitor is a guest */
   needsAccount: boolean;
   isGuest: boolean;
+  /** how the customer pays: a hosted card checkout, or a PromptPay transfer */
+  via?: "stripe" | "promptpay";
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +35,7 @@ export function BuyCredits({
     setBusy(packageId);
     setError(null);
     try {
-      const res = await fetch("/api/billing/checkout", {
+      const res = await fetch(via === "promptpay" ? "/api/billing/promptpay" : "/api/billing/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ packageId }),
@@ -41,7 +44,7 @@ export function BuyCredits({
       if (!res.ok || !data?.url) {
         throw new Error(data?.error?.message ?? "เริ่มการชำระเงินไม่สำเร็จ กรุณาลองใหม่");
       }
-      // hand over to the provider's hosted payment page
+      // the hosted checkout, or our own PromptPay payment page
       window.location.assign(data.url as string);
     } catch (e) {
       setError((e as Error).message);
@@ -99,8 +102,9 @@ export function BuyCredits({
         </p>
       ) : (
         <p className="mt-3 text-xs text-ivory-dim">
-          ชำระเงินบนหน้าที่ปลอดภัยของ Stripe — ARCANA ไม่เห็นและไม่เก็บข้อมูลบัตรของคุณ
-          เครดิตจะเข้าทันทีเมื่อการชำระเงินสำเร็จ
+          {via === "promptpay"
+            ? "ชำระด้วยการโอนผ่าน PromptPay แล้วส่งสลิป — เครดิตเข้าเมื่อตรวจสลิปผ่าน"
+            : "ชำระเงินบนหน้าที่ปลอดภัยของ Stripe — ARCANA ไม่เห็นและไม่เก็บข้อมูลบัตรของคุณ เครดิตจะเข้าทันทีเมื่อการชำระเงินสำเร็จ"}
           {testMode && " · ขณะนี้เป็นโหมดทดสอบ ยังไม่มีการตัดเงินจริง"}
           {isGuest &&
             " · คุณกำลังใช้งานแบบผู้เยี่ยมชม เครดิตจะผูกกับเบราว์เซอร์นี้ แนะนำให้เข้าสู่ระบบเพื่อย้ายเครดิตเข้าบัญชี"}

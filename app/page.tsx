@@ -176,7 +176,10 @@ export default function LandingPage() {
           </div>
           <p className="max-w-md sm:text-right">
             ไพ่ทาโรต์เป็นเครื่องมือเชิงสัญลักษณ์เพื่อการสะท้อนคิด ไม่ใช่การพยากรณ์ที่รับประกันผล
-            และไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย หรือการเงิน · ภาพไพ่ Rider-Waite-Smith (1909) เป็นสาธารณสมบัติ
+            และไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย หรือการเงิน · ภาพไพ่ Rider-Waite-Smith (1909) เป็นสาธารณสมบัติ ·{" "}
+            <Link href="/terms" className="underline underline-offset-4 hover:text-ivory">
+              ข้อตกลงและนโยบาย
+            </Link>
           </p>
         </div>
       </footer>

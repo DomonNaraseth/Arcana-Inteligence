@@ -247,6 +247,31 @@ Webhook events to select in Stripe: the four `checkout.session.*` events plus `c
 
 `tests/integration/stripe-membership.test.ts` (opt-in) drives a real subscription checkout, the first credit grant, the billing portal, a renewal invoice, a scheduled cancellation and the end of the subscription through the same service code as the webhook route, using a throwaway guest. Not covered by it: the HTTP routes themselves (they need the credit system on) and refunds.
 
+## 6f. PromptPay — how real money is taken
+
+Migration: `supabase/migrations/0007_arcana_promptpay.sql`. Code: `lib/billing/promptpay.ts` (QR payload, config), `lib/billing/slip.ts` (slip verification adapter and our own checks), routes under `app/api/billing/promptpay/`, page `app/(app)/pay/[id]`.
+
+**Why not Stripe:** Stripe's restricted-businesses list prohibits "บริการเกี่ยวกับเรื่องเหนือธรรมชาติและการดูดวง" for accounts in Thailand, so the Stripe integration (6d, 6e) stays a sandbox-only tool. On production a test-mode key is offered to admins only.
+
+**Flow**
+
+1. `POST /api/billing/promptpay` with `{ packageId }` or `{ planId }` records a `provider = 'promptpay'` payment at the server-side price and returns `/pay/<id>`.
+2. The payment page shows a PromptPay QR carrying the exact amount (payload from `promptpay-qr`, image from `qrcode`, both rendered on the server), the recipient's account name and a masked id.
+3. The customer transfers in their banking app, then either
+   - uploads the slip → `POST /api/billing/promptpay/slip` sends the image to the slip-verification service (SlipOK when `SLIPOK_BRANCH_ID` and `SLIPOK_API_KEY` are set), which confirms the transfer with the banking network; `checkSlip()` then requires the same amount, a transfer time not older than the payment (10 minutes of slack) and the optional recipient hint; `arcana_fulfill_promptpay()` re-checks owner, amount and time and grants; or
+   - presses "แจ้งโอนแล้ว" → `arcana_claim_promptpay()` stores a note. This grants nothing: an admin compares it with the bank statement in Admin → Payments and approves (`arcana_admin_approve_promptpay()`) or rejects.
+4. Both paths end in `arcana_promptpay_grant()`: status `paid`, credits through the ledger once, and for a plan a prepaid membership. A unique index on the transfer reference makes one slip pay for one payment only. The slip image is never stored.
+
+**Prepaid memberships:** a plan bought by PromptPay lasts 30 days from payment (`source = 'prepaid'`), grants the plan's credits at once and never renews or charges by itself; buying the same plan again while active adds 30 days.
+
+**What each party must set up:** the PromptPay id, account name and seller contact are runtime settings (`promptpay`, `business`), entered in Admin → Settings. The slip service keys are environment variables. Without the slip service every transfer waits for manual approval.
+
+**Not automated:** refunds (transfer back from the banking app, then correct credits in Admin → Users), renewal reminders, expiry of unpaid PromptPay payments.
+
+`node scripts/dev-promptpay.mjs` runs the app on :3003 with a made-up PromptPay id; payments created by a development build are flagged as test.
+
+**Policies:** `/terms` holds the terms, the refund and cancellation policy, the privacy notice and the seller's contact details (from the `business` setting). The text is a starting template and should be reviewed by the owner.
+
 ## 7. Folder structure
 
 ```

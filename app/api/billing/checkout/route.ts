@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { fail } from "@/lib/api";
-import { BillingProviderError, billingProvider, checkoutExpiry, toMinor } from "@/lib/billing/provider";
+import {
+  BillingProviderError,
+  billingProvider,
+  cardCheckoutOpen,
+  checkoutExpiry,
+  toMinor,
+} from "@/lib/billing/provider";
+import { isAdminCaller } from "@/lib/admin";
 import { getSettings } from "@/lib/settings";
 import { ConfigError, getContext } from "@/lib/supabase/server";
 
@@ -17,6 +24,14 @@ export async function POST(req: Request) {
     const parsed = bodySchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return fail("bad_request", "ไม่พบแพ็กเกจที่เลือก", 400);
 
+    const { supabase, user, isGuest } = await getContext();
+    if (!cardCheckoutOpen(await isAdminCaller(supabase))) {
+      return fail(
+        "billing_not_configured",
+        "ระบบชำระเงินยังไม่เปิดให้บริการ (Configuration Missing)",
+        503,
+      );
+    }
     const provider = billingProvider();
     if (!provider) {
       return fail(
@@ -25,8 +40,6 @@ export async function POST(req: Request) {
         503,
       );
     }
-
-    const { supabase, user, isGuest } = await getContext();
     const settings = await getSettings(supabase);
     if (!settings.credits.enabled) {
       return fail("bad_request", "ระบบเครดิตยังไม่เปิดใช้งาน", 400);

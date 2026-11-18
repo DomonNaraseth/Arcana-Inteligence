@@ -9,6 +9,7 @@ export interface PaymentRow {
   amount_minor: number;
   currency: string;
   package_name: string;
+  provider?: "stripe" | "promptpay";
   created_at: string;
   paid_at: string | null;
 }
@@ -25,7 +26,7 @@ export interface MySubscription {
   tier: "free" | "basic" | "premium" | "unlimited";
   status: "active" | "canceled" | "expired";
   plan_id: string | null;
-  source: "admin" | "stripe";
+  source: "admin" | "stripe" | "prepaid";
   current_period_end: string | null;
   cancel_at_period_end: boolean;
   /** the provider knows this customer, so the billing portal can be opened */
@@ -45,7 +46,8 @@ export function billingDate(subscription: Pick<MySubscription, "source" | "curre
 }
 
 /** Plan names as stored with a payment and shown in history. */
-export const planLabel = (name: string) => `${name} (รายเดือน)`;
+export const planLabel = (name: string, mode: "monthly" | "prepaid" = "monthly") =>
+  mode === "prepaid" ? `${name} (30 วัน)` : `${name} (รายเดือน)`;
 
 const isoFromUnix = (seconds: number | null) =>
   typeof seconds === "number" ? new Date(seconds * 1000).toISOString() : null;

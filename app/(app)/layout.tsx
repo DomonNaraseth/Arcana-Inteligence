@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { AppNav } from "@/components/shell/AppNav";
 import { AuthNotice } from "@/components/shell/AuthNotice";
@@ -32,6 +33,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <footer className="mx-auto max-w-6xl px-5 pb-10 text-center text-xs text-ivory-dim/60">
         ไพ่ทาโรต์เป็นเครื่องมือเชิงสัญลักษณ์เพื่อการสะท้อนคิด ไม่ใช่การพยากรณ์ที่รับประกันผล
         และไม่ทดแทนคำแนะนำจากผู้เชี่ยวชาญด้านการแพทย์ กฎหมาย หรือการเงิน
+        <span className="mt-2 block">
+          <Link href="/terms" className="underline underline-offset-4 hover:text-ivory">
+            ข้อตกลง นโยบายคืนเงิน และความเป็นส่วนตัว
+          </Link>
+        </span>
       </footer>
     </div>
   );

@@ -4,7 +4,8 @@ import { Check } from "lucide-react";
 import { BuyCredits } from "@/components/account/BuyCredits";
 import { GoogleSignInButton } from "@/components/account/GoogleSignInButton";
 import { ManageSubscriptionButton, SubscribeButton } from "@/components/account/MembershipActions";
-import { billingStatus } from "@/lib/billing/provider";
+import { billingStatus, cardCheckoutOpen } from "@/lib/billing/provider";
+import { promptPayConfig } from "@/lib/billing/promptpay";
 import type { MySubscription } from "@/lib/billing/service";
 import { getWallet } from "@/lib/credits";
 import { getSettings } from "@/lib/settings";
@@ -30,18 +31,29 @@ export default async function PricingPage({
   searchParams: Promise<{ payment?: string }>;
 }) {
   const { supabase, isGuest } = await getContext();
-  const [settings, wallet, sub] = await Promise.all([
+  const [settings, wallet, sub, role] = await Promise.all([
     getSettings(supabase),
     getWallet(supabase),
     supabase.rpc("arcana_my_subscription"),
+    supabase.rpc("arcana_admin_role"),
   ]);
+  const cardOpen = cardCheckoutOpen(role.data === "owner" || role.data === "admin");
   const { payment } = await searchParams;
   const billing = billingStatus();
   const c = settings.credits;
   const subscription = (sub.data ?? null) as MySubscription | null;
   const tier = wallet?.tier ?? "free";
   const managed = Boolean(subscription?.active && subscription.source === "stripe" && subscription.manageable);
-  const canSell = c.enabled && billing.configured;
+  // PromptPay, once set up, is the way to pay; the card checkout is the fallback
+  const via: "promptpay" | "stripe" | null = !c.enabled
+    ? null
+    : promptPayConfig(settings)
+      ? "promptpay"
+      : cardOpen
+        ? "stripe"
+        : null;
+  const canSell = via !== null;
+  const prepaid = via === "promptpay";
   const readingsFor = (credits: number) => Math.floor(credits / Math.max(1, c.cost_interpret.medium));
 
   return (
@@ -66,7 +78,7 @@ export default async function PricingPage({
           แพ็กเกจด้านล่างจะเริ่มใช้เมื่อเปิดระบบ
         </p>
       )}
-      {c.enabled && !billing.configured && (
+      {c.enabled && !canSell && (
         <p role="status" className="panel border-amber-400/40 px-5 py-4 text-sm text-amber-100">
           การชำระเงินออนไลน์ยังไม่เปิดให้บริการ (Configuration Missing) — สมัครฟรีและใช้เครดิตโบนัสได้ตามปกติ
         </p>
@@ -110,14 +122,19 @@ export default async function PricingPage({
                 <h2 className="text-xl font-semibold">{plan.name}</h2>
                 {best && <span className="chip">คุ้มที่สุด</span>}
               </div>
-              <p className="mt-1 text-sm text-ivory-dim">สมาชิกรายเดือน ยกเลิกได้ทุกเมื่อ</p>
+              <p className="mt-1 text-sm text-ivory-dim">
+                {prepaid ? "สมาชิก 30 วัน จ่ายครั้งเดียว ไม่ตัดเงินอัตโนมัติ" : "สมาชิกรายเดือน ยกเลิกได้ทุกเมื่อ"}
+              </p>
               <p className="mt-5 text-4xl font-semibold tabular-nums text-gold-light">
                 ฿{plan.price_thb.toLocaleString("th-TH")}
-                <span className="ml-1 font-sans text-sm font-normal text-ivory-dim">/เดือน</span>
+                <span className="ml-1 font-sans text-sm font-normal text-ivory-dim">
+                  {prepaid ? "/30 วัน" : "/เดือน"}
+                </span>
               </p>
               <ul className="mt-6 flex-1 space-y-3">
                 <Feature>
-                  {plan.monthly_credits} เครดิตทุกเดือน (อ่านไพ่ชุด 4–7 ใบได้ราว {readingsFor(plan.monthly_credits)} ครั้ง)
+                  {plan.monthly_credits} เครดิต{prepaid ? "ทันทีที่ชำระ" : "ทุกเดือน"} (อ่านไพ่ชุด 4–7 ใบได้ราว{" "}
+                  {readingsFor(plan.monthly_credits)} ครั้ง)
                 </Feature>
                 <Feature>
                   เฉลี่ย {(plan.price_thb / plan.monthly_credits).toFixed(2)} บาทต่อเครดิต — ถูกกว่าแพ็กเติมเครดิต
@@ -127,7 +144,14 @@ export default async function PricingPage({
                 <Feature>ทุกอย่างในแพ็กเกจ Free</Feature>
               </ul>
               <div className="mt-6">
-                {current && managed ? (
+                {prepaid && !isGuest ? (
+                  <SubscribeButton
+                    planId={plan.id}
+                    via="promptpay"
+                    label={current ? `ต่ออายุ ${plan.name} อีก 30 วัน` : `สมัคร ${plan.name}`}
+                    highlighted={best}
+                  />
+                ) : current && managed ? (
                   <ManageSubscriptionButton className="btn-ghost w-full" />
                 ) : current ? (
                   <p className="rounded-full border border-gold/40 px-5 py-2.5 text-center text-sm text-gold-light">
@@ -189,7 +213,8 @@ export default async function PricingPage({
           <BuyCredits
             packages={settings.packages}
             available={canSell}
-            testMode={billing.configured && !billing.livemode}
+            via={via ?? "stripe"}
+            testMode={via === "stripe" && !billing.livemode}
             needsAccount={settings.billing.require_account && isGuest}
             isGuest={isGuest}
           />
@@ -202,16 +227,19 @@ export default async function PricingPage({
         </h2>
         <dl className="mt-3 space-y-4">
           <div>
-            <dt className="text-ivory">ยกเลิกสมาชิกได้อย่างไร</dt>
+            <dt className="text-ivory">{prepaid ? "สมาชิกต่ออายุเองหรือไม่" : "ยกเลิกสมาชิกได้อย่างไร"}</dt>
             <dd className="mt-1">
-              กด “จัดการสมาชิก” ในหน้าบัญชีได้ทุกเมื่อ สิทธิ์สมาชิกใช้ได้จนครบรอบที่ชำระแล้ว
-              และเครดิตที่ได้รับไปแล้วยังอยู่กับคุณ
+              {prepaid
+                ? "ไม่ต่ออายุเองและไม่มีการตัดเงินอัตโนมัติ สมาชิกใช้ได้ 30 วันนับจากวันที่ชำระ ต่ออายุได้เองที่หน้านี้ และเครดิตที่ได้รับไปแล้วยังอยู่กับคุณ"
+                : "กด “จัดการสมาชิก” ในหน้าบัญชีได้ทุกเมื่อ สิทธิ์สมาชิกใช้ได้จนครบรอบที่ชำระแล้ว และเครดิตที่ได้รับไปแล้วยังอยู่กับคุณ"}
             </dd>
           </div>
           <div>
             <dt className="text-ivory">ชำระเงินปลอดภัยหรือไม่</dt>
             <dd className="mt-1">
-              ชำระบนหน้าของ Stripe โดยตรง ARCANA ไม่เห็นและไม่เก็บข้อมูลบัตรของคุณ
+              {prepaid
+                ? "โอนผ่าน PromptPay จากแอปธนาคารของคุณเอง ARCANA ไม่ขอและไม่เก็บข้อมูลบัตรหรือรหัสผ่านธนาคาร สลิปถูกตรวจกับเครือข่ายธนาคารและไม่ถูกเก็บไว้"
+                : "ชำระบนหน้าของ Stripe โดยตรง ARCANA ไม่เห็นและไม่เก็บข้อมูลบัตรของคุณ"}
             </dd>
           </div>
           <div>

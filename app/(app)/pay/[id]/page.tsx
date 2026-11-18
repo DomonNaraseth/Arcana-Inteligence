@@ -1,0 +1,133 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { CheckCircle2 } from "lucide-react";
+import { SlipUpload } from "@/components/billing/SlipUpload";
+import { formatThb } from "@/lib/billing/provider";
+import {
+  maskPromptPayId,
+  promptPayConfig,
+  promptPayPayload,
+  promptPayQrDataUrl,
+} from "@/lib/billing/promptpay";
+import { slipVerifier } from "@/lib/billing/slip";
+import { formatThaiDate } from "@/lib/format";
+import { getSettings } from "@/lib/settings";
+import { getContext } from "@/lib/supabase/server";
+
+export const metadata: Metadata = { title: "ชำระเงินด้วย PromptPay", robots: { index: false } };
+
+interface MyPayment {
+  id: string;
+  status: "pending" | "paid" | "failed" | "expired" | "refunded";
+  provider: string;
+  credits: number;
+  amount_minor: number;
+  package_name: string;
+  claimed: boolean;
+  created_at: string;
+}
+
+export default async function PayPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
+
+  const { supabase } = await getContext();
+  const [settings, paymentRes] = await Promise.all([
+    getSettings(supabase),
+    supabase.rpc("arcana_my_payment", { p_id: id }),
+  ]);
+  const payment = paymentRes.data as MyPayment | null;
+  if (!payment || payment.provider !== "promptpay") notFound();
+
+  const config = promptPayConfig(settings);
+  const qr =
+    config && payment.status === "pending"
+      ? await promptPayQrDataUrl(promptPayPayload(config.id, payment.amount_minor))
+      : null;
+  const amount = formatThb(payment.amount_minor);
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <header>
+        <p className="eyebrow">PromptPay</p>
+        <h1 className="mt-3 text-3xl font-semibold">ชำระเงิน</h1>
+        <p className="mt-2 text-ivory-dim">
+          {payment.package_name} · {payment.credits} เครดิต · สร้างรายการเมื่อ {formatThaiDate(payment.created_at, true)}
+        </p>
+      </header>
+
+      {payment.status === "paid" ? (
+        <section className="panel-gold p-6">
+          <p role="status" className="flex items-start gap-3 text-ivory">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-gold" aria-hidden="true" />
+            <span>
+              รายการนี้ชำระเงินแล้ว — {payment.credits} เครดิตอยู่ในกระเป๋าของคุณ
+            </span>
+          </p>
+          <Link href="/ask" className="btn-gold mt-5">
+            เริ่มถามไพ่
+          </Link>
+        </section>
+      ) : payment.status !== "pending" ? (
+        <section className="panel p-6">
+          <p className="text-ivory">รายการนี้ปิดไปแล้ว หากคุณโอนเงินแล้ว กรุณาติดต่อผู้ดูแลพร้อมสลิป</p>
+          <Link href="/pricing" className="btn-ghost mt-5 px-5 py-2.5 text-sm">
+            เริ่มรายการใหม่
+          </Link>
+        </section>
+      ) : !config || !qr ? (
+        <section className="panel border-amber-400/40 p-6 text-amber-100">
+          ระบบชำระเงินยังไม่เปิดให้บริการ (Configuration Missing) — ยังไม่ต้องโอนเงิน
+        </section>
+      ) : (
+        <>
+          <section className="panel grid gap-6 p-6 sm:grid-cols-[auto_1fr]" aria-labelledby="step1-title">
+            <div className="mx-auto w-56 overflow-hidden rounded-xl bg-white p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qr} alt={`QR PromptPay สำหรับโอน ${amount}`} width={480} height={480} className="h-auto w-full" />
+            </div>
+            <div>
+              <h2 id="step1-title" className="text-xl font-semibold">
+                1. สแกนด้วยแอปธนาคารแล้วโอน
+              </h2>
+              <p className="mt-3 font-sans text-4xl font-semibold tabular-nums text-gold-light">{amount}</p>
+              <dl className="mt-4 space-y-2 text-sm">
+                <div className="flex gap-3">
+                  <dt className="w-28 shrink-0 text-ivory-dim">ชื่อบัญชีผู้รับ</dt>
+                  <dd className="text-ivory">{config.accountName || "—"}</dd>
+                </div>
+                <div className="flex gap-3">
+                  <dt className="w-28 shrink-0 text-ivory-dim">PromptPay</dt>
+                  <dd className="font-mono text-ivory">{maskPromptPayId(config.id)}</dd>
+                </div>
+              </dl>
+              <p className="mt-4 text-sm text-ivory-dim">
+                QR ระบุยอดเงินไว้แล้ว กรุณาตรวจชื่อบัญชีผู้รับในแอปธนาคารให้ตรงกับด้านบนก่อนยืนยัน
+                และโอนให้ตรงยอด
+              </p>
+            </div>
+          </section>
+
+          <section className="panel p-6" aria-labelledby="step2-title">
+            <h2 id="step2-title" className="text-xl font-semibold">
+              2. ส่งหลักฐานการโอน
+            </h2>
+            <div className="mt-4">
+              <SlipUpload paymentId={payment.id} autoVerify={Boolean(slipVerifier())} alreadyClaimed={payment.claimed} />
+            </div>
+          </section>
+        </>
+      )}
+
+      <p className="text-xs text-ivory-dim/70">
+        ผู้ขาย: {settings.business.name}
+        {settings.business.contact_email && ` · ${settings.business.contact_email}`}
+        {settings.business.contact_line && ` · LINE ${settings.business.contact_line}`} ·{" "}
+        <Link href="/terms" className="underline underline-offset-4">
+          ข้อตกลงและนโยบายคืนเงิน
+        </Link>
+      </p>
+    </div>
+  );
+}

@@ -80,6 +80,23 @@ export const settingsSchemas = {
     streak_days: int(0, 365),
     streak_reward: int(0, 100),
   }),
+  /** transfers to the owner's own PromptPay account, confirmed by slip */
+  promptpay: z.object({
+    enabled: z.boolean(),
+    /** PromptPay ID: 10-digit mobile, 13-digit national/tax id or 15-digit e-wallet id */
+    id: z.string().max(20).regex(/^d*$/),
+    /** shown to the payer so they can confirm the recipient in their banking app */
+    account_name: z.string().max(80),
+    /** optional text that must appear in the slip's recipient details */
+    receiver_hint: z.string().max(40),
+  }),
+  /** who the customer is buying from — shown on the payment and terms pages */
+  business: z.object({
+    name: z.string().min(1).max(80),
+    contact_email: z.string().max(120),
+    contact_line: z.string().max(60),
+    address: z.string().max(240),
+  }),
   billing: z.object({
     /** used only to express AI cost (USD) and revenue (THB) in one currency */
     usd_thb: z.number().min(1).max(1000),
@@ -139,6 +156,8 @@ export const DEFAULT_SETTINGS: Settings = {
     { id: "premium", name: "Premium", price_thb: 299, monthly_credits: 150 },
   ],
   daily: { ai_message: true, streak_days: 7, streak_reward: 3 },
+  promptpay: { enabled: false, id: "", account_name: "", receiver_hint: "" },
+  business: { name: "ARCANA INTELLIGENCE", contact_email: "", contact_line: "", address: "" },
   billing: { usd_thb: 36, require_account: false },
 };
 

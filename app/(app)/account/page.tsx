@@ -6,7 +6,8 @@ import { BuyCredits } from "@/components/account/BuyCredits";
 import { ManageSubscriptionButton } from "@/components/account/MembershipActions";
 import { PaymentReturn } from "@/components/account/PaymentReturn";
 import { aiStatus } from "@/lib/ai/provider";
-import { billingStatus, formatThb } from "@/lib/billing/provider";
+import { billingStatus, cardCheckoutOpen, formatThb } from "@/lib/billing/provider";
+import { promptPayConfig } from "@/lib/billing/promptpay";
 import { billingDate, type MySubscription, type PaymentRow } from "@/lib/billing/service";
 import { TIER_TH, getWallet } from "@/lib/credits";
 import { formatThaiDate } from "@/lib/format";
@@ -66,6 +67,9 @@ export default async function AccountPage({
   ]);
 
   const billing = billingStatus();
+  const via: "promptpay" | "stripe" = promptPayConfig(settings) ? "promptpay" : "stripe";
+  const canSell =
+    via === "promptpay" || cardCheckoutOpen(role.data === "owner" || role.data === "admin");
   const payments = settings.credits.enabled
     ? (((await supabase.rpc("arcana_my_payments", { p_limit: 10 })).data ?? []) as PaymentRow[])
     : [];
@@ -203,6 +207,11 @@ export default async function AccountPage({
                     <ManageSubscriptionButton />
                   </div>
                 )}
+                {subscription.source === "prepaid" && (
+                  <Link href="/pricing" className="btn-ghost px-5 py-2.5 text-sm">
+                    ต่ออายุ
+                  </Link>
+                )}
               </div>
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -252,8 +261,9 @@ export default async function AccountPage({
           {settings.packages.length > 0 && (
             <BuyCredits
               packages={settings.packages}
-              available={billing.configured}
-              testMode={billing.configured && !billing.livemode}
+              available={canSell}
+              via={via}
+              testMode={via === "stripe" && billing.configured && !billing.livemode}
               needsAccount={settings.billing.require_account && isGuest}
               isGuest={isGuest}
             />
@@ -273,9 +283,15 @@ export default async function AccountPage({
                     </span>
                     <span className="shrink-0 text-right">
                       <span className="block tabular-nums text-ivory">{formatThb(p.amount_minor)}</span>
-                      <span className={p.status === "paid" ? "text-xs text-gold-light" : "text-xs text-ivory-dim"}>
-                        {PAYMENT_STATUS_TH[p.status] ?? p.status}
-                      </span>
+                      {p.status === "pending" && p.provider === "promptpay" ? (
+                        <Link href={`/pay/${p.id}`} className="text-xs text-gold underline-offset-4 hover:underline">
+                          โอนและส่งสลิป
+                        </Link>
+                      ) : (
+                        <span className={p.status === "paid" ? "text-xs text-gold-light" : "text-xs text-ivory-dim"}>
+                          {PAYMENT_STATUS_TH[p.status] ?? p.status}
+                        </span>
+                      )}
                     </span>
                   </li>
                 ))}
