@@ -13,6 +13,7 @@ import {
   LayoutGrid,
   Library,
   ScrollText,
+  Sparkle,
   Sparkles,
   Sun,
   UserRound,
@@ -43,6 +44,7 @@ const TABS = [
 const MORE = [
   { href: "/journal", label: "บันทึกของฉัน", hint: "จดสิ่งที่ไพ่สะท้อนและติดตามผล", icon: BookHeart },
   { href: "/cards", label: "คลังไพ่ 78 ใบ", hint: "ความหมายไพ่ทุกใบ ตั้งตรงและกลับหัว", icon: Library },
+  { href: "/oracle", label: "ไพ่ออราเคิล", hint: "สำรับไพ่ของ ARCANA ขอสารหนึ่งใบได้ทุกเมื่อ", icon: Sparkle },
   { href: "/pricing", label: "แพ็กเกจและเครดิต", hint: "สมาชิก 30 วัน และแพ็กเติมเครดิต", icon: Gem },
   { href: "/account", label: "บัญชีของฉัน", hint: "เครดิต สมาชิก และการเข้าสู่ระบบ", icon: UserRound },
   { href: "/terms", label: "ข้อตกลงและนโยบาย", hint: "การคืนเงิน ความเป็นส่วนตัว ติดต่อเรา", icon: ScrollText },

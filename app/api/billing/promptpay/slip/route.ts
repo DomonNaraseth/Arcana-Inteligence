@@ -13,7 +13,9 @@ export const maxDuration = 60;
 const MAX_BYTES = 4 * 1024 * 1024;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-const reject = (reason: SlipFailure, status = 422) => fail("bad_request", SLIP_FAILURE_TH[reason], status);
+/** Thai message for the customer plus a machine reason, so the page can retry a bank delay by itself. */
+const reject = (reason: SlipFailure, status = 422) =>
+  NextResponse.json({ error: { code: "bad_request", message: SLIP_FAILURE_TH[reason], reason } }, { status });
 
 /**
  * The customer uploads the slip of their transfer. The slip-verification

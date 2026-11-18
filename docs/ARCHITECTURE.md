@@ -310,6 +310,23 @@ Migration: `supabase/migrations/0008_arcana_growth.sql`. Code: `lib/tracking.ts`
 - **Engine quirks handled in `components/speech/narrator.ts`:** text is spoken in ≤180-character chunks (some engines stop on long utterances), pause cancels and resumes from the chunk (pause is unreliable on several engines), speech starts only from a tap (iOS), and stops on navigation or when the page is left; if a locked screen silences the engine without an end event, returning to the page restarts the cut-off sentence. Where there is no speech engine the button explains it; where no Thai voice is installed it says where to add one.
 - **Measurement:** the first tap on a kind of text sends a `listen` event (`/listen/reading`, `/listen/daily` or `/listen/chat`) through `arcana_track()` — one row per person per kind per day, nothing about the text (migration `0010_arcana_listen.sql`). Admin → การเติบโต shows how many people listened.
 
+## 6j. Card art in readings
+
+The direct answer opens with the drawn cards' pictures, each card row shows its card (larger when open), example chips carry a thumbnail, and every drawn card named in the prose is marked in gold (`lib/tarot/mentions.ts`, tested): English names anywhere, Thai names only after "ไพ่" because many are everyday words.
+
+## 6k. Automation
+
+- **Slips:** with `SLIPOK_BRANCH_ID` + `SLIPOK_API_KEY`, `/api/billing/promptpay/slip` sends the slip to SlipOK as base64 JSON and grants through `arcana_promptpay_grant`-family functions. A bank-delay answer (1009/1010) comes back with `reason: "bank_delay"`; the pay page keeps the slip and retries by itself (3× two minutes). Admin → การชำระเงิน → "ตรวจการเชื่อมต่อ SlipOK" asks SlipOK for the quota and one non-slip probe and explains failures (including the shape — never the value — of the two settings).
+- **Daily cron** (`vercel.json`, 20:00 UTC = 03:00 Bangkok) → `/api/cron/daily`, accepted only with `Authorization: Bearer $CRON_SECRET` (Vercel sends it once `CRON_SECRET` is set). It runs `arcana_expire_stale_payments(48)`: PromptPay orders never paid nor reported for 48 h become `expired` (audited as `system:cron`). Nothing is granted.
+
+## 6l. Oracle deck studio
+
+- **Admin → สร้างไพ่ออราเคิล** (`/admin/oracle`): a brief (idea, purpose, audience, tone, 8–78 cards, art style) → Claude plans the concept and names every card (`lib/oracle/ai.ts`, Zod + a code check that numbers 1..N appear once and names are unique, one repair round) → draft deck.
+- **Studio** (`/admin/oracle/[id]`): card texts written 6 at a time; art painted one card per request through Vercel AI Gateway `/v1/images/generations` (`openai/gpt-image-2`, then `bfl/flux-2-pro`), stored as WebP in `arcana_oracle_images`; cover and card back; concept and style editable; every card editable and repaintable. Image prompts are built in code from the deck style guide and never ask for lettering — the site overlays Thai names (`components/oracle/OracleCardFace.tsx`).
+- **Print** (`/admin/oracle/[id]/print`): fronts at 70×120 mm with 3 mm bleed, four per A4, card backs, and the guidebook; browser print to PDF.
+- **Publish:** `/oracle` and `/oracle/[slug]` show published decks; "รับไพ่ของฉัน" draws with `node:crypto` (`lib/oracle/draw.ts`) — the AI never picks the card.
+- **Data and rules:** migration `0011_arcana_oracle.sql`; writes only through `arcana_admin_oracle_*` (each calls `arcana_require_admin()` and writes `arcana_audit_logs`); drafts readable by admins only; card messages follow the same responsible-guidance rules as the tarot persona. No placeholder art or text is ever generated when AI is unavailable.
+
 ## 7. Folder structure
 
 ```

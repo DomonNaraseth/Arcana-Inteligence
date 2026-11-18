@@ -137,7 +137,8 @@ function gatewayCandidates(tier: ModelTier): string[] {
   return [...new Set(list)];
 }
 
-async function gatewayToken(): Promise<string | null> {
+/** Vercel AI Gateway credential: an API key, or the deployment's OIDC token. Also used for image generation. */
+export async function gatewayToken(): Promise<string | null> {
   if (process.env.AI_GATEWAY_API_KEY) return process.env.AI_GATEWAY_API_KEY;
   try {
     const h = await headers();

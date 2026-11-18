@@ -49,7 +49,11 @@ Owner notifications (LINE or Telegram) stay as built. They need the owner's own 
   - visual scene, image prompt, image path, image state.
   - Each (deck_id, number) pair is unique.
 - **Who can do what.** Admins write only through SECURITY DEFINER `arcana_admin_oracle_*` functions. Each calls `arcana_require_admin()` and writes `arcana_audit_logs` (rule 8). The public can read published decks and their cards only.
-- **Images.** They go in the public Supabase Storage bucket `arcana-oracle`. Only an admin can upload, through a storage policy that calls `arcana_is_admin()`. Files are stored as `deck/<id>/card-<n>-<stamp>.webp|png`.
+- **Images.** Images are stored as compact WebP (resized to ≤1024 px with sharp, roughly 150–300 KB each) in `arcana_oracle_images`.
+  - A `bytea` column holds the bytes; each image is capped at 3 MB.
+  - A repaint deletes the picture it replaces.
+  - They are served by `/api/oracle/image/[id]`. Published pictures are cached for a year, since their ids never change; drafts are admin-only and use `no-store`.
+  - Supabase Storage was rejected for two reasons. Its policies cannot see our server header, which `arcana_is_admin()` needs. And it would mean adding objects outside the `arcana_` tables in a shared project.
 
 **AI**
 - **Concept.** `generate()` (Claude, deep tier) receives the owner's brief: idea, purpose, audience, tone, number of cards (8–78), art style preset or a custom style. It returns JSON validated by Zod: names, story, themes, a visual style guide and a card list (name plus a one-line essence).

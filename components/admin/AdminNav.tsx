@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/admin/users", label: "ผู้ใช้และเครดิต" },
   { href: "/admin/payments", label: "การชำระเงิน" },
   { href: "/admin/knowledge", label: "คลังความรู้ไพ่" },
+  { href: "/admin/oracle", label: "สร้างไพ่ออราเคิล" },
   { href: "/admin/settings", label: "ตั้งค่าระบบ" },
   { href: "/admin/logs", label: "บันทึกระบบ" },
 ];
