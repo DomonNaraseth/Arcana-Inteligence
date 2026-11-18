@@ -8,6 +8,7 @@ import { Sigil } from "@/components/brand/Logo";
 
 const LINKS = [
   { href: "/admin", label: "ภาพรวม" },
+  { href: "/admin/growth", label: "การเติบโต" },
   { href: "/admin/users", label: "ผู้ใช้และเครดิต" },
   { href: "/admin/payments", label: "การชำระเงิน" },
   { href: "/admin/knowledge", label: "คลังความรู้ไพ่" },

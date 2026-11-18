@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Flame, Sparkles } from "lucide-react";
+import { RenewalBanner } from "@/components/account/RenewalBanner";
 import { CardBack } from "@/components/tarot/CardBack";
+import { renewalNotice, type RenewalNotice } from "@/lib/billing/renewal";
+import type { MySubscription } from "@/lib/billing/service";
 import { aiStatus } from "@/lib/ai/provider";
 import type { ReadingRow } from "@/lib/data/readings";
 import { getDailyState, type DailyState } from "@/lib/data/daily";
@@ -22,11 +25,19 @@ const QUICK = [
 export default async function HomePage() {
   let recent: Pick<ReadingRow, "id" | "question" | "spread_id" | "status" | "title" | "tendency" | "created_at">[] = [];
   let daily: DailyState | null = null;
+  let renewal: RenewalNotice | null = null;
   let kb = DEFAULT_KNOWLEDGE;
   if (supabaseConfigured()) {
     try {
       const { supabase } = await getContext();
-      [kb, daily] = await Promise.all([getKnowledge(supabase), getDailyState(supabase)]);
+      const [k, d, sub] = await Promise.all([
+        getKnowledge(supabase),
+        getDailyState(supabase),
+        supabase.rpc("arcana_my_subscription"),
+      ]);
+      kb = k;
+      daily = d;
+      renewal = renewalNotice((sub.data ?? null) as MySubscription | null);
       const { data } = await supabase
         .from("arcana_readings")
         .select("id, question, spread_id, status, title, tendency, created_at")
@@ -44,6 +55,7 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-12">
+      {renewal && <RenewalBanner notice={renewal} />}
       {!ai.configured && (
         <div role="alert" className="panel border-amber-400/40 px-5 py-4 text-sm text-amber-100">
           <strong>Configuration Missing:</strong> ยังไม่ได้ตั้งค่า AI (ANTHROPIC_API_KEY)

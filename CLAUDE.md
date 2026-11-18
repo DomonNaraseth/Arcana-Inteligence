@@ -24,6 +24,8 @@ AI Tarot & Life Guidance platform. Thai-first UI. Read `docs/ARCHITECTURE.md` be
 
 12. **Free does not mean free AI.** Recurring free allowances must not include deep-model readings by default; the free habit is the daily card. Check the cost per reading (Admin → overview) before raising any free allowance.
 
+13. **Measurement is first-party and coarse.** Page views and touchpoints go through `arcana_track()` only; never store a full URL, IP address, user agent or anything typed by the user, and do not add third-party pixels or analytics scripts without the owner's decision on consent (PDPA).
+
 ## Architecture conventions
 
 - Modular monolith. Business logic lives in `lib/` and never imports from `components/` or `app/`.

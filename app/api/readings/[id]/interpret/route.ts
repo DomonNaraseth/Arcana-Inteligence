@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { interpretReading } from "@/lib/ai/engine";
 import { fail, handleError } from "@/lib/api";
 import { getWallet, spendCredits } from "@/lib/credits";
+import { recordEvent } from "@/lib/data/events";
 import { getReadingBundle, logUsage, withinQuota } from "@/lib/data/readings";
 import { getSettings, interpretCost, promptVersionFor } from "@/lib/settings";
 import { getContext } from "@/lib/supabase/server";
@@ -37,6 +38,7 @@ export async function POST(
       const wallet = await getWallet(supabase);
       if (!wallet) return fail("server_error", "ตรวจสอบเครดิตไม่สำเร็จ กรุณาลองใหม่", 500);
       if (wallet.balance < cost) {
+        await recordEvent(supabase, "out_of_credits", "/reading/[id]");
         return fail(
           "insufficient_credits",
 isGuest && settings.credits.signup_bonus > 0

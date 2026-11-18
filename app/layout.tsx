@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Noto_Sans_Thai, Noto_Serif_Thai } from "next/font/google";
+import { Tracker } from "@/components/shell/Tracker";
+import { siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const serif = Cormorant_Garamond({
@@ -24,6 +26,7 @@ const sans = Noto_Sans_Thai({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl()),
   title: {
     default: "ARCANA INTELLIGENCE — AI Tarot & Life Guidance",
     template: "%s · ARCANA INTELLIGENCE",
@@ -35,7 +38,13 @@ export const metadata: Metadata = {
     description: "Beyond the Cards. Into the Meaning. — AI Tarot & Life Guidance",
     type: "website",
     locale: "th_TH",
+    siteName: "ARCANA INTELLIGENCE",
   },
+  twitter: { card: "summary_large_image" },
+  // set GOOGLE_SITE_VERIFICATION to the token Search Console gives for the HTML-tag method
+  ...(process.env.GOOGLE_SITE_VERIFICATION
+    ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } }
+    : {}),
 };
 
 export const viewport: Viewport = {
@@ -47,7 +56,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="th" className={`${serif.variable} ${thaiSerif.variable} ${sans.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Tracker />
+      </body>
     </html>
   );
 }

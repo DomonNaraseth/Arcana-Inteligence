@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sparkles, Sun } from "lucide-react";
 import { currentKnowledge } from "@/lib/tarot/current";
 import { ELEMENT_TH, SUIT_TH } from "@/lib/tarot/deck";
 
@@ -12,7 +12,20 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const card = (await currentKnowledge()).card((await params).id);
-  return { title: card ? `${card.name} (${card.nameTh})` : "ไม่พบไพ่" };
+  if (!card) return { title: "ไม่พบไพ่" };
+  const title = `ไพ่ ${card.name} (${card.nameTh}) ความหมาย ตั้งตรง กลับหัว ความรัก การงาน การเงิน`;
+  const description = `ความหมายไพ่ทาโรต์ ${card.name} ${card.nameTh}: ${card.uprightTh}`.slice(0, 160);
+  return {
+    title,
+    description,
+    alternates: { canonical: `/cards/${card.id}` },
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      images: [{ url: card.image, alt: card.name }],
+    },
+  };
 }
 
 export default async function CardPage({ params }: { params: Promise<{ id: string }> }) {
@@ -83,6 +96,21 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
           </dl>
         </div>
       </div>
+
+      <section className="panel-gold mt-10 flex flex-wrap items-center justify-between gap-4 p-6" aria-label="ลองเปิดไพ่">
+        <p className="max-w-xl text-ivory">
+          อยากรู้ว่าไพ่ {card.name} หมายถึงอะไรสำหรับเรื่องของคุณ? ถามคำถามของคุณ แล้วให้ ARCANA
+          เปิดไพ่และอ่านความหมายตามตำแหน่งให้
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/ask" className="btn-gold px-5 py-2.5 text-sm">
+            <Sparkles className="h-4 w-4" /> ถามไพ่
+          </Link>
+          <Link href="/daily" className="btn-ghost px-5 py-2.5 text-sm">
+            <Sun className="h-4 w-4" /> เปิดไพ่ประจำวันฟรี
+          </Link>
+        </div>
+      </section>
 
       <nav className="mt-10 flex justify-between border-t border-white/10 pt-6 text-sm" aria-label="ไพ่ก่อนหน้าและถัดไป">
         <Link href={`/cards/${prev.id}`} className="text-ivory-dim hover:text-gold-light">

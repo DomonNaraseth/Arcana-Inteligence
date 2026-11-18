@@ -14,6 +14,7 @@ import { getContext } from "@/lib/supabase/server";
 export const metadata: Metadata = {
   title: "แพ็กเกจและเครดิต",
   description: "ไพ่ประจำวันฟรีทุกวัน สมาชิกรายเดือนพร้อมเครดิตอ่านไพ่ และแพ็กเติมเครดิต",
+  alternates: { canonical: "/pricing" },
 };
 
 function Feature({ children }: { children: React.ReactNode }) {

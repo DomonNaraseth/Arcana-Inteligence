@@ -4,6 +4,8 @@ import { ShieldCheck } from "lucide-react";
 import { AuthPanel } from "@/components/account/AuthPanel";
 import { BuyCredits } from "@/components/account/BuyCredits";
 import { ManageSubscriptionButton } from "@/components/account/MembershipActions";
+import { RenewalBanner } from "@/components/account/RenewalBanner";
+import { renewalNotice } from "@/lib/billing/renewal";
 import { PaymentReturn } from "@/components/account/PaymentReturn";
 import { aiStatus } from "@/lib/ai/provider";
 import { billingStatus, cardCheckoutOpen, formatThb } from "@/lib/billing/provider";
@@ -81,6 +83,7 @@ export default async function AccountPage({
   const creditsOn = settings.credits.enabled && wallet;
   const subscription = (subscriptionRes.data ?? null) as MySubscription | null;
   const member = Boolean(subscription?.active && wallet && wallet.tier !== "free");
+  const renewal = renewalNotice(subscription);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -92,6 +95,12 @@ export default async function AccountPage({
           outcome={paymentParam}
           paymentId={pid && /^[0-9a-f-]{36}$/i.test(pid) ? pid : null}
         />
+      )}
+
+      {renewal && (
+        <div className="mt-6">
+          <RenewalBanner notice={renewal} />
+        </div>
       )}
 
       {adminRole && (

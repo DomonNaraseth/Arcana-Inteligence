@@ -6,6 +6,7 @@ import { getContext } from "@/lib/supabase/server";
 export const metadata: Metadata = {
   title: "ข้อตกลง นโยบายคืนเงิน และความเป็นส่วนตัว",
   description: "ข้อตกลงการใช้บริการ นโยบายการชำระเงิน การคืนเงิน และความเป็นส่วนตัวของ ARCANA INTELLIGENCE",
+  alternates: { canonical: "/terms" },
 };
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
@@ -110,6 +111,12 @@ export default async function TermsPage() {
           และขอให้ลบบัญชีพร้อมข้อมูลทั้งหมดได้ผ่านช่องทางติดต่อด้านล่าง
         </p>
         <p>เว็บไซต์ใช้คุกกี้ที่จำเป็นต่อการเข้าสู่ระบบและการจดจำการอ่านไพ่ของคุณเท่านั้น</p>
+        <p>
+          เราวัดการใช้งานเว็บไซต์ด้วยระบบของเราเอง ไม่ใช้เครื่องมือติดตามของบุคคลที่สาม
+          โดยบันทึกเพียงหน้าที่เปิด วันที่ แหล่งที่มาของการเข้าชมแบบย่อ (เช่น Google หรือ LINE
+          และชื่อแคมเปญถ้ามี) และประเภทอุปกรณ์ (มือถือ แท็บเล็ต หรือคอมพิวเตอร์)
+          เราไม่บันทึกหมายเลข IP หรือที่อยู่เว็บเต็มของหน้าที่คุณมาจาก
+        </p>
       </Section>
 
       <Section id="contact" title="6. ติดต่อเรา">

@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 import { CardLibrary } from "@/components/tarot/CardLibrary";
 import { currentKnowledge } from "@/lib/tarot/current";
 
-export const metadata: Metadata = { title: "คลังไพ่ 78 ใบ" };
+export const metadata: Metadata = {
+  title: "ความหมายไพ่ทาโรต์ครบ 78 ใบ (Rider-Waite-Smith)",
+  description:
+    "ความหมายไพ่ทาโรต์ครบ 78 ใบ ทั้ง Major Arcana และ Minor Arcana — ตั้งตรง กลับหัว ความรัก การงาน การเงิน และคำแนะนำ ภาษาไทย",
+  alternates: { canonical: "/cards" },
+};
 
 export default async function CardsPage() {
   const kb = await currentKnowledge();

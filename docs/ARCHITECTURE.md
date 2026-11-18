@@ -274,6 +274,24 @@ Migration: `supabase/migrations/0007_arcana_promptpay.sql`. Code: `lib/billing/p
 
 **Policies:** `/terms` holds the terms, the refund and cancellation policy, the privacy notice and the seller's contact details (from the `business` setting). The text is a starting template and should be reviewed by the owner.
 
+## 6g. Growth measurement and SEO
+
+Migration: `supabase/migrations/0008_arcana_growth.sql`. Code: `lib/tracking.ts` (pure rules), `lib/data/events.ts`, `app/api/track`, `components/shell/Tracker.tsx`, Admin → การเติบโต (`app/admin/(panel)/growth`).
+
+**First-party only.** No third-party pixel or analytics script. The browser sends one beacon per page shown (`POST /api/track`, always 204); the server files it under the visitor's existing pseudonymous key (`arcana_user_key()`) through `arcana_track()`:
+
+- `arcana_events`: one row per user, event, page and Bangkok day. Pages are grouped by `trackedPath()`: personal ids become `/reading/[id]` and `/pay/[id]`; admin, API and auth pages are not measured. Events: `page_view`, and `out_of_credits` recorded by the interpret route.
+- `arcana_touchpoints`: first and last touch per user — source / medium / campaign / content / term from UTM tags (lowercased, no spaces), otherwise derived from the referring host (Google, LINE, Facebook, TikTok… or the host as a referral); a click id alone (`gclid`, `fbclid`) names the network. Only the referring **host**, a device class (mobile / tablet / desktop) and the landing page group are kept — never a full URL, IP address or user agent. A first visit with nothing known is `direct`.
+- Crawlers and link previews (`isBot()`) and admin sessions are not measured. A guest's rows move to the account on sign-in (`arcana_claim_guest()`).
+
+**Funnel** (`arcana_admin_funnel(days)`): visitors, daily card, new accounts (auth users created in the period that have ARCANA activity — the auth project is shared), started a reading, got an interpretation, hit "not enough credits", viewed pricing, started a payment, paid; plus revenue, a by-source table (first touch) and top pages. Each step counts people who did it in the period — it is not a strict cohort. Fewer than 30 visitors shows a small-sample warning. Measurement began on 2026-11-18; earlier activity has no source (`unknown`).
+
+**Campaign links:** Admin → การเติบโต builds UTM links (`buildTrackedUrl()`).
+
+**SEO:** `app/sitemap.ts` (5 public pages + 78 card pages from the static deck), `app/robots.ts` (private pages disallowed), `metadataBase` from `siteUrl()`, a default share image (`app/opengraph-image.tsx`, Latin text only — the image font has no Thai), per-card titles, descriptions, canonical links and the card image as preview, and a call to action on every card page. Search Console verification: set `GOOGLE_SITE_VERIFICATION` (HTML-tag token); query and ranking data are not pulled into the admin.
+
+**Renewal reminder:** prepaid memberships show a banner on home and account from 5 days before the end until 7 days after (`renewalNotice()`); recurring and admin-set memberships do not.
+
 ## 7. Folder structure
 
 ```

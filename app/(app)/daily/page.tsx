@@ -10,6 +10,7 @@ import { getKnowledge } from "@/lib/tarot/knowledge";
 export const metadata: Metadata = {
   title: "ไพ่ประจำวัน",
   description: "เปิดไพ่ทาโรต์ประจำวันฟรีทุกวัน พร้อมสารประจำวันจาก ARCANA",
+  alternates: { canonical: "/daily" },
 };
 
 export default async function DailyPage() {
