@@ -33,6 +33,17 @@ export interface MySubscription {
   active: boolean;
 }
 
+/**
+ * A provider-managed membership is stored with two days of grace after the
+ * paid period, so a renewal that is a little late does not interrupt access.
+ * This returns the date the period itself ends (renewal or cancellation date).
+ */
+export function billingDate(subscription: Pick<MySubscription, "source" | "current_period_end">): string | null {
+  if (!subscription.current_period_end) return null;
+  if (subscription.source !== "stripe") return subscription.current_period_end;
+  return new Date(new Date(subscription.current_period_end).getTime() - 2 * 24 * 60 * 60 * 1000).toISOString();
+}
+
 /** Plan names as stored with a payment and shown in history. */
 export const planLabel = (name: string) => `${name} (รายเดือน)`;
 

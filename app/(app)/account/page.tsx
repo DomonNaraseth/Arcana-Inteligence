@@ -7,7 +7,7 @@ import { ManageSubscriptionButton } from "@/components/account/MembershipActions
 import { PaymentReturn } from "@/components/account/PaymentReturn";
 import { aiStatus } from "@/lib/ai/provider";
 import { billingStatus, formatThb } from "@/lib/billing/provider";
-import type { MySubscription, PaymentRow } from "@/lib/billing/service";
+import { billingDate, type MySubscription, type PaymentRow } from "@/lib/billing/service";
 import { TIER_TH, getWallet } from "@/lib/credits";
 import { formatThaiDate } from "@/lib/format";
 import { getSettings } from "@/lib/settings";
@@ -193,8 +193,8 @@ export default async function AccountPage({
                         ? "ใช้ได้ถึง"
                         : subscription.cancel_at_period_end
                           ? "ยกเลิกแล้ว — ใช้สิทธิ์ได้ถึง"
-                          : "ต่ออายุอัตโนมัติประมาณ"}{" "}
-                      {formatThaiDate(subscription.current_period_end)}
+                          : "ต่ออายุอัตโนมัติวันที่"}{" "}
+                      {formatThaiDate(billingDate(subscription) ?? subscription.current_period_end)}
                     </span>
                   )}
                 </p>
