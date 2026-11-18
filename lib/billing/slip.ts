@@ -196,13 +196,6 @@ function shapeOf(branch: string, key: string): NonNullable<SlipOkHealth["shape"]
   };
 }
 
-/** The branch id SlipOK expects: digits only. Pasted text such as "#12345" or "ID12345" is reduced to its digits. */
-export function normalizeBranchId(raw: string): string {
-  const t = raw.trim();
-  const digits = t.replace(/\D/g, "");
-  return /^\d+$/.test(t) ? t : digits.length >= 3 ? digits : t;
-}
-
 /**
  * Asks SlipOK for the branch's remaining quota (free: no slip is checked) and
  * sends one QR text that is not a slip. Used by Admin → Payments to show
