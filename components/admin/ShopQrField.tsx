@@ -96,7 +96,8 @@ export function ShopQrField({ value, onChange }: { value: string; onChange: (v: 
         <summary className="cursor-pointer text-xs text-ivory-dim">หรือวางข้อความของ QR</summary>
         <textarea
           value={value}
-          onChange={(e) => onChange(e.target.value.trim())}
+          // trimmed when checked and saved, not per keystroke — a merchant name may hold spaces
+          onChange={(e) => onChange(e.target.value.replace(/[\r\n]/g, ""))}
           rows={3}
           spellCheck={false}
           autoComplete="off"

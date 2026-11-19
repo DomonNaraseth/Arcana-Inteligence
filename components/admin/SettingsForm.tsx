@@ -449,7 +449,7 @@ export function SettingsForm({ initial, recommended, role, owners, admins, sprea
         disabled={promptpay.enabled && !promptpayIdOk && !shopQrOk}
         onSave={() =>
           promptpaySaver.run(async () => {
-            await postJson("/api/admin/settings", { key: "promptpay", value: { ...promptpay, id: promptpayDigits } });
+            await postJson("/api/admin/settings", { key: "promptpay", value: { ...promptpay, id: promptpayDigits, merchant_qr: promptpay.merchant_qr.trim() } });
             await postJson("/api/admin/settings", { key: "business", value: business });
           })
         }
