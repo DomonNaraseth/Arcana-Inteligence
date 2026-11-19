@@ -89,6 +89,8 @@ export const settingsSchemas = {
     account_name: z.string().max(80),
     /** optional text that must appear in the slip's recipient details */
     receiver_hint: z.string().max(40),
+    /** the shop's static Thai QR text (K SHOP, แม่มณี …); when valid, used instead of the id */
+    merchant_qr: z.string().max(512).default(""),
   }),
   /** who the customer is buying from — shown on the payment and terms pages */
   business: z.object({
@@ -156,7 +158,7 @@ export const DEFAULT_SETTINGS: Settings = {
     { id: "premium", name: "Premium", price_thb: 299, monthly_credits: 150 },
   ],
   daily: { ai_message: true, streak_days: 7, streak_reward: 3 },
-  promptpay: { enabled: false, id: "", account_name: "", receiver_hint: "" },
+  promptpay: { enabled: false, id: "", account_name: "", receiver_hint: "", merchant_qr: "" },
   business: { name: "ARCANA INTELLIGENCE", contact_email: "", contact_line: "", address: "" },
   billing: { usd_thb: 36, require_account: false },
 };

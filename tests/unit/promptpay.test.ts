@@ -44,8 +44,11 @@ describe("PromptPay QR", () => {
 
   it("is off until an admin switches it on with a valid id", () => {
     expect(promptPayConfig(DEFAULT_SETTINGS)).toBeNull();
-    const on = { ...DEFAULT_SETTINGS, promptpay: { enabled: true, id: "0812345678", account_name: " ร้าน ก ", receiver_hint: "" } };
-    expect(promptPayConfig(on)).toEqual({ id: "0812345678", accountName: "ร้าน ก", receiverHint: "" });
+    const on = {
+      ...DEFAULT_SETTINGS,
+      promptpay: { enabled: true, id: "0812345678", account_name: " ร้าน ก ", receiver_hint: "", merchant_qr: "" },
+    };
+    expect(promptPayConfig(on)).toEqual({ id: "0812345678", merchantQr: null, accountName: "ร้าน ก", receiverHint: "" });
     expect(promptPayConfig({ ...on, promptpay: { ...on.promptpay, id: "12345" } })).toBeNull();
     expect(promptPayConfig({ ...on, promptpay: { ...on.promptpay, enabled: false } })).toBeNull();
   });

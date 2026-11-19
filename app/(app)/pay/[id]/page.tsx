@@ -10,8 +10,8 @@ import { ensureQr, gatewayFor, type GatewayQr } from "@/lib/billing/gateway";
 import { formatThb } from "@/lib/billing/provider";
 import {
   maskPromptPayId,
+  paymentPayload,
   promptPayConfig,
-  promptPayPayload,
   promptPayQrDataUrl,
 } from "@/lib/billing/promptpay";
 import { slipVerifier } from "@/lib/billing/slip";
@@ -71,8 +71,9 @@ export default async function PayPage({
   const config = promptPayConfig(settings);
   const qr =
     !auto && config && payment.status === "pending"
-      ? await promptPayQrDataUrl(promptPayPayload(config.id, payment.amount_minor))
+      ? await promptPayQrDataUrl(paymentPayload(config, payment.amount_minor))
       : null;
+  const shop = Boolean(config?.merchantQr);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -144,17 +145,20 @@ export default async function PayPage({
               <p className="mt-3 font-sans text-4xl font-semibold tabular-nums text-gold-light">{amount}</p>
               <dl className="mt-4 space-y-2 text-sm">
                 <div className="flex gap-3">
-                  <dt className="w-28 shrink-0 text-ivory-dim">ชื่อบัญชีผู้รับ</dt>
-                  <dd className="text-ivory">{config.accountName || "—"}</dd>
+                  <dt className="w-28 shrink-0 text-ivory-dim">{shop ? "ร้านผู้รับเงิน" : "ชื่อบัญชีผู้รับ"}</dt>
+                  <dd className="text-ivory">{config.accountName || settings.business.name || "—"}</dd>
                 </div>
-                <div className="flex gap-3">
-                  <dt className="w-28 shrink-0 text-ivory-dim">PromptPay</dt>
-                  <dd className="font-mono text-ivory">{maskPromptPayId(config.id)}</dd>
-                </div>
+                {!shop && config.id && (
+                  <div className="flex gap-3">
+                    <dt className="w-28 shrink-0 text-ivory-dim">PromptPay</dt>
+                    <dd className="font-mono text-ivory">{maskPromptPayId(config.id)}</dd>
+                  </div>
+                )}
               </dl>
               <p className="mt-4 text-sm text-ivory-dim">
-                QR ระบุยอดเงินไว้แล้ว กรุณาตรวจชื่อบัญชีผู้รับในแอปธนาคารให้ตรงกับด้านบนก่อนยืนยัน
-                และโอนให้ตรงยอด
+                {shop
+                  ? "QR ระบุยอดเงินไว้แล้ว สแกนแล้วตรวจชื่อร้านในแอปธนาคารให้ตรงกับด้านบนก่อนยืนยัน"
+                  : "QR ระบุยอดเงินไว้แล้ว กรุณาตรวจชื่อบัญชีผู้รับในแอปธนาคารให้ตรงกับด้านบนก่อนยืนยัน และโอนให้ตรงยอด"}
               </p>
             </div>
           </section>

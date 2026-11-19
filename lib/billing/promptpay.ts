@@ -1,6 +1,7 @@
 import generatePayload from "promptpay-qr";
 import QRCode from "qrcode";
 import type { Settings } from "../settings";
+import { checkThaiQr, thaiQrWithAmount } from "./thaiqr";
 
 /**
  * PromptPay transfers to the owner's own account. There is no gateway: the
@@ -9,8 +10,10 @@ import type { Settings } from "../settings";
  */
 
 export interface PromptPayConfig {
-  /** digits only */
-  id: string;
+  /** digits only; null when only a shop QR is set */
+  id: string | null;
+  /** the shop's own static Thai QR (K SHOP, แม่มณี …); when set, customers pay the shop */
+  merchantQr: string | null;
   accountName: string;
   receiverHint: string;
 }
@@ -30,12 +33,22 @@ export function normalizePromptPayId(raw: string | null | undefined): string | n
 export function promptPayConfig(settings: Settings): PromptPayConfig | null {
   const s = settings.promptpay;
   const id = s.enabled ? normalizePromptPayId(s.id) : null;
-  if (id) return { id, accountName: s.account_name.trim(), receiverHint: s.receiver_hint.trim() };
+  const merchantQr = s.enabled && checkThaiQr(s.merchant_qr).ok ? s.merchant_qr.trim() : null;
+  if (id || merchantQr) {
+    return { id, merchantQr, accountName: s.account_name.trim(), receiverHint: s.receiver_hint.trim() };
+  }
   if (process.env.NODE_ENV !== "production") {
     const dev = normalizePromptPayId(process.env.ARCANA_DEV_PROMPTPAY_ID);
-    if (dev) return { id: dev, accountName: "DEV ACCOUNT (not real)", receiverHint: "" };
+    if (dev) return { id: dev, merchantQr: null, accountName: "DEV ACCOUNT (not real)", receiverHint: "" };
   }
   return null;
+}
+
+/** The QR payload for one order: the shop's QR when set, else a PromptPay QR to the id. */
+export function paymentPayload(config: PromptPayConfig, amountMinor: number): string {
+  if (config.merchantQr) return thaiQrWithAmount(config.merchantQr, amountMinor);
+  if (!config.id) throw new Error("PromptPay is not configured");
+  return promptPayPayload(config.id, amountMinor);
 }
 
 /** EMVCo payload of a PromptPay QR for an exact amount (satang). */

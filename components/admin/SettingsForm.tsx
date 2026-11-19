@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { Check, Loader2, Plus, Trash2 } from "lucide-react";
+import { checkThaiQr } from "@/lib/billing/thaiqr";
 import type { SettingKey, Settings } from "@/lib/settings";
+import { ShopQrField } from "./ShopQrField";
 
 interface Props {
   initial: Settings;
@@ -163,6 +165,7 @@ export function SettingsForm({ initial, recommended, role, owners, admins, sprea
   const promptpaySaver = useSaver();
   const promptpayDigits = promptpay.id.replace(/\D/g, "");
   const promptpayIdOk = /^0\d{9}$/.test(promptpayDigits) || /^\d{13}$/.test(promptpayDigits) || /^\d{15}$/.test(promptpayDigits);
+  const shopQrOk = checkThaiQr(promptpay.merchant_qr).ok;
 
   function applyRecommended() {
     // fills the form only — nothing is stored until each section is saved
@@ -443,7 +446,7 @@ export function SettingsForm({ initial, recommended, role, owners, admins, sprea
         title="PromptPay และข้อมูลผู้ขาย"
         description="ลูกค้าโอนเข้าบัญชีของคุณโดยตรงด้วย QR ที่ระบุยอดไว้แล้ว ชื่อบัญชีและช่องทางติดต่อจะแสดงในหน้าชำระเงินและหน้าข้อตกลง"
         state={promptpaySaver.state}
-        disabled={promptpay.enabled && !promptpayIdOk}
+        disabled={promptpay.enabled && !promptpayIdOk && !shopQrOk}
         onSave={() =>
           promptpaySaver.run(async () => {
             await postJson("/api/admin/settings", { key: "promptpay", value: { ...promptpay, id: promptpayDigits } });
@@ -470,12 +473,12 @@ export function SettingsForm({ initial, recommended, role, owners, admins, sprea
               autoComplete="off"
               className="field mt-1 py-2 text-sm tabular-nums"
             />
-            {promptpay.id && !promptpayIdOk && (
+            {promptpay.id && !promptpayIdOk && !shopQrOk && (
               <span className="mt-1 block text-xs text-amber-200">จำนวนหลักไม่ถูกต้อง — QR จะใช้ไม่ได้</span>
             )}
           </label>
           <label className="block">
-            <span className="text-sm text-ivory-dim">ชื่อบัญชีผู้รับ (ตามที่แอปธนาคารแสดง)</span>
+            <span className="text-sm text-ivory-dim">ชื่อบัญชีผู้รับ หรือชื่อร้าน (ตามที่แอปธนาคารแสดง)</span>
             <input
               value={promptpay.account_name}
               onChange={(e) => setPromptpay({ ...promptpay, account_name: e.target.value })}
@@ -494,6 +497,8 @@ export function SettingsForm({ initial, recommended, role, owners, admins, sprea
         <p className="mt-2 text-xs text-ivory-dim">
           หลังบันทึก เปิดหน้าแพ็กเกจแล้วลองสแกน QR ด้วยแอปธนาคารของคุณ เพื่อดูว่าชื่อบัญชีที่ขึ้นถูกต้องก่อนให้ลูกค้าใช้
         </p>
+
+        <ShopQrField value={promptpay.merchant_qr} onChange={(v) => setPromptpay({ ...promptpay, merchant_qr: v })} />
 
         <h3 className="mt-6 text-sm font-medium text-gold">ข้อมูลผู้ขายและช่องทางติดต่อ (แสดงต่อสาธารณะ)</h3>
         <div className="mt-3 grid gap-5 sm:grid-cols-2">
