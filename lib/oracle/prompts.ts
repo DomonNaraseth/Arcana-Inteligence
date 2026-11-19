@@ -83,7 +83,7 @@ ${GUIDANCE_RULES}
   "message": "สารถึงผู้ที่จั่วได้ไพ่ใบนี้ 3-5 ประโยค พูดกับ 'คุณ' โดยตรง พร้อมสิ่งเล็ก ๆ ที่ลองทำได้วันนี้",
   "affirmation": "ประโยคยืนยันพลังบวก 1 ประโยค ขึ้นต้นด้วย 'ฉัน'",
   "reflection": "คำถามชวนคิด 1 ข้อ",
-  "visual": "ENGLISH: the scene painted on this card — subject, action, setting, symbols, light — matching the deck's art direction and motifs; describe only what is seen: never the card's name, no signs, books, banners, scrolls or anything with writing"
+  "visual": "ENGLISH: the scene painted on this card — subject, action, setting, symbols, light — matching the deck's art direction and motifs; describe only what is seen: never the card's name, no signs, books, banners, scrolls or anything with writing. Image filters refuse some scenes: never children, babies or bare feet (show youth through symbols: a sapling, a small lantern, a fledgling bird); never a body lying down, sleeping or in bed (show rest as a figure seated in robes, or a still landscape); figures are adults in flowing robes"
 } ] }
 - เขียนเฉพาะไพ่หมายเลข ${args.numbers.join(", ")} ครบทุกใบ ไม่เกินนี้
 - ให้แต่ละใบต่างจากใบอื่นในสำรับอย่างชัดเจน ทั้งเนื้อหาและภาพ`;
@@ -105,6 +105,31 @@ const IMAGE_RULES =
   "Absolutely no text, letters, numbers, captions, title, watermark, signature, frame or border anywhere in the image. " +
   "Keep the main subject within the upper three quarters; keep the lowest fifth calm and uncluttered (a title band is added later). " +
   "No gore, no nudity, nothing frightening.";
+
+/** after a content-filter refusal: the same rules said only in positive words */
+const GENTLE_RULES = IMAGE_RULES.replace(
+  "No gore, no nudity, nothing frightening.",
+  "A gentle, wholesome, peaceful scene suitable for all ages; any figure is an adult wearing long flowing robes.",
+);
+
+/**
+ * Asks the text model to describe a card's scene again after the image
+ * provider's content filter refused it — same meaning, symbols and palette,
+ * none of the details such filters flag. The owner sees and can edit the
+ * result: it is saved as the card's visual.
+ */
+export function gentlerScenePrompt(card: Pick<OracleCard, "name_en" | "essence" | "visual">): { system: string; user: string } {
+  const system = `You rewrite scene descriptions for illustrated oracle cards. An image generator's automatic content filter refused the scene below. Its words were harmless, but filters misread some details.
+Rewrite the scene so it keeps the card's meaning, mood, symbols, colours and light, while removing every detail filters tend to flag:
+- no children, babies, minors or bare feet: show youth or innocence through symbols (a sapling, a small lantern, a fledgling bird, a young deer)
+- no body lying down, sleeping, reclining, in bed or with closed eyes: show rest as a seated robed figure or a quiet landscape
+- no skin, chest, body, palms or physical closeness words; any figure is an adult in long flowing robes, seen from behind or at a distance
+- no words such as naked, bare, spread, deep, cradled, flesh, blood, death
+- never any writing, letters or the card's name
+Answer with one JSON object only: {"visual": "English scene description, 60-140 words"}`;
+  const user = JSON.stringify({ card_meaning: card.essence, refused_scene: card.visual }, null, 2);
+  return { system, user };
+}
 
 /** Quoted words invite lettering ("a sign reading 'Rest'"): keep the words, drop the quotes. */
 const stripQuoted = (s: string) => s.replace(/["“”'‘’]/g, "");
@@ -131,7 +156,10 @@ export function imagePrompt(args: {
   concept: Partial<OracleConcept>;
   target: "card" | "cover" | "back";
   card?: Pick<OracleCard, "name_en" | "visual" | "essence">;
+  /** after a content-filter refusal */
+  gentle?: boolean;
 }): string {
+  const rules = args.gentle ? GENTLE_RULES : IMAGE_RULES;
   const head = "A wordless illustration for an oracle card deck. The image contains no writing of any kind.";
   const style = styleBlock(args.concept);
   if (args.target === "back") {
@@ -140,17 +168,17 @@ export function imagePrompt(args: {
       style,
       `This is the CARD BACK: ${args.concept.style?.back_design ?? "an ornamental symmetrical pattern"}.`,
       "Perfectly symmetrical so it looks identical when rotated 180 degrees; ornamental; centered emblem.",
-      IMAGE_RULES.replace(" (a title band is added later)", ""),
+      rules.replace(" (a title band is added later)", ""),
     ].join("\n\n");
   }
   if (args.target === "cover") {
-    return [head, style, `This is the BOX COVER art: ${args.concept.style?.cover_design ?? ""}`, IMAGE_RULES].join("\n\n");
+    return [head, style, `This is the BOX COVER art: ${args.concept.style?.cover_design ?? ""}`, rules].join("\n\n");
   }
   return [
     head,
     style,
     `Scene: ${stripQuoted(args.card?.visual || args.card?.essence || "")}`,
     "Same visual style, palette and level of detail as every other card in the deck.",
-    IMAGE_RULES,
+    rules,
   ].join("\n\n");
 }

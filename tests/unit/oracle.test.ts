@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { checkConcept } from "@/lib/oracle/ai";
 import { drawOracleCard } from "@/lib/oracle/draw";
-import { conceptPrompt, imagePrompt, styleText } from "@/lib/oracle/prompts";
+import { isModeration } from "@/lib/oracle/image";
+import { conceptPrompt, gentlerScenePrompt, imagePrompt, styleText } from "@/lib/oracle/prompts";
 import { briefSchema, cardTextsSchema, conceptSchema, type OracleConceptDraft } from "@/lib/oracle/schemas";
 
 const style = {
@@ -101,6 +102,33 @@ describe("oracle image prompt", () => {
   it("asks for a symmetrical card back and a cover with the deck's own descriptions", () => {
     expect(imagePrompt({ title_en: "Moon Within", concept, target: "back" })).toContain("symmetrical lotus mandala");
     expect(imagePrompt({ title_en: "Moon Within", concept, target: "cover" })).toContain("crescent moon over a lotus pond");
+  });
+
+  it("after a content-filter refusal says the same rules only in positive words", () => {
+    const card = { name_en: "Inner Child", visual: "a lantern glowing in a meadow", essence: "" };
+    const normal = imagePrompt({ title_en: "Moon Within", concept, target: "card", card });
+    const gentle = imagePrompt({ title_en: "Moon Within", concept, target: "card", card, gentle: true });
+    expect(normal).toContain("no nudity");
+    expect(gentle).not.toMatch(/nudity|gore/);
+    expect(gentle).toContain("wholesome");
+    expect(gentle).toContain("no text, letters, numbers");
+    expect(gentle).toContain("a lantern glowing");
+  });
+
+  it("asks for a rewrite that keeps the meaning and drops what filters flag", () => {
+    const { system, user } = gentlerScenePrompt({ name_en: "Inner Child", essence: "the playful part of you", visual: "a small child, barefoot" });
+    expect(system).toContain("no children");
+    expect(system).toContain('{"visual"');
+    expect(user).toContain("a small child, barefoot");
+    expect(user).not.toContain("Inner Child");
+  });
+});
+
+describe("isModeration", () => {
+  it("recognises the provider's content-filter refusal and nothing else", () => {
+    expect(isModeration("bfl/flux-2-pro: HTTP 500 Black Forest Labs generation failed: Request Moderated.")).toBe(true);
+    expect(isModeration("bfl/flux-2-pro: HTTP 503 Service Unavailable")).toBe(false);
+    expect(isModeration("openai/gpt-image-2: HTTP 403 Free tier users do not have access to this model.")).toBe(false);
   });
 });
 

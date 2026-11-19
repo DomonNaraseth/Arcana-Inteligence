@@ -3,7 +3,8 @@ import { z } from "zod";
 import { adminRoute, rpcFailure } from "@/lib/admin";
 import { fail } from "@/lib/api";
 import { oracleFailure } from "@/lib/oracle/errors";
-import { paint } from "@/lib/oracle/image";
+import { rewriteRefusedScene } from "@/lib/oracle/ai";
+import { OracleImageError, paint } from "@/lib/oracle/image";
 import { imagePrompt } from "@/lib/oracle/prompts";
 import type { OracleDeck } from "@/lib/oracle/schemas";
 
@@ -36,10 +37,29 @@ export async function POST(req: Request, { params }: Ctx) {
     if (body.target === "card" && !card) return fail("not_found", "ไม่พบไพ่ใบนี้", 404);
     if (card && !card.visual && !card.essence) return fail("bad_request", "เขียนเนื้อหาไพ่ใบนี้ก่อน แล้วจึงสร้างภาพ", 400);
 
-    const prompt = imagePrompt({ title_en: deck.title_en || deck.title, concept: deck.concept, target: body.target, card });
+    const title_en = deck.title_en || deck.title;
+    let prompt = imagePrompt({ title_en, concept: deck.concept, target: body.target, card });
     let picture;
+    let rewritten: string | null = null;
     try {
-      picture = await paint(prompt);
+      try {
+        picture = await paint(prompt);
+      } catch (err) {
+        // The content filter refused this card's scene: describe it again without
+        // the details filters flag, then try once more. The new scene is kept on
+        // the card (visible and editable in the studio) only if it paints.
+        if (!(err instanceof OracleImageError) || err.reason !== "moderated") throw err;
+        console.error("[arcana] oracle image moderated, retrying gently:", err.message);
+        if (card?.visual) rewritten = await rewriteRefusedScene(card);
+        prompt = imagePrompt({
+          title_en,
+          concept: deck.concept,
+          target: body.target,
+          card: card && rewritten ? { ...card, visual: rewritten } : card,
+          gentle: true,
+        });
+        picture = await paint(prompt);
+      }
     } catch (err) {
       if (card) {
         await admin.supabase.rpc("arcana_admin_oracle_image_failed", {
@@ -49,6 +69,14 @@ export async function POST(req: Request, { params }: Ctx) {
         });
       }
       return oracleFailure(err, "oracle image");
+    }
+
+    if (card && rewritten) {
+      const saved = await admin.supabase.rpc("arcana_admin_oracle_save_cards", {
+        p_id: id,
+        p_cards: [{ number: card.number, name: card.name, visual: rewritten }],
+      });
+      if (saved.error) return rpcFailure(saved.error);
     }
 
     const { data: imageId, error: saveError } = await admin.supabase.rpc("arcana_admin_oracle_set_image", {
@@ -61,6 +89,6 @@ export async function POST(req: Request, { params }: Ctx) {
       p_prompt: prompt,
     });
     if (saveError) return rpcFailure(saveError);
-    return NextResponse.json({ image: imageId, model: picture.model, bytes: picture.bytes.length });
+    return NextResponse.json({ image: imageId, model: picture.model, bytes: picture.bytes.length, visual: rewritten });
   })(req);
 }

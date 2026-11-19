@@ -17,11 +17,18 @@ export const IMAGE_MODELS = ["bfl/flux-2-pro", "openai/gpt-image-2"] as const;
 export class OracleImageError extends Error {
   constructor(
     message: string,
-    public reason: "not_configured" | "refused" | "unavailable",
+    public reason: "not_configured" | "refused" | "unavailable" | "moderated",
   ) {
     super(message);
   }
 }
+
+/**
+ * The provider's content filter turned the prompt down ("Request Moderated" from
+ * Black Forest Labs). Retrying the same words fails every time; the scene has
+ * to be described differently.
+ */
+export const isModeration = (message: string) => /moderat|content policy|safety system/i.test(message);
 
 let workingModel: string | null = null;
 
@@ -71,7 +78,8 @@ export async function paint(prompt: string): Promise<{ bytes: Buffer; mime: "ima
         raw = await callModel(model, prompt, token);
       } catch (err) {
         // a busy provider (5xx) usually answers a few seconds later: one quiet retry
-        if (!(err instanceof OracleImageError) || err.reason !== "unavailable") throw err;
+        // (a moderation refusal arrives as a 500 too, and would only be refused again)
+        if (!(err instanceof OracleImageError) || err.reason !== "unavailable" || isModeration(err.message)) throw err;
         await new Promise((r) => setTimeout(r, 5000));
         raw = await callModel(model, prompt, token);
       }
@@ -83,5 +91,6 @@ export async function paint(prompt: string): Promise<{ bytes: Buffer; mime: "ima
       errors.push((err as Error).message);
     }
   }
-  throw new OracleImageError(errors.join(" | "), errors.every((e) => / 40[13] /.test(e)) ? "refused" : "unavailable");
+  const reason = errors.some(isModeration) ? "moderated" : errors.every((e) => / 40[13] /.test(e)) ? "refused" : "unavailable";
+  throw new OracleImageError(errors.join(" | "), reason);
 }

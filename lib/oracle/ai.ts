@@ -1,5 +1,5 @@
 import { extractJson, generate, type ChatMessage, type GenerateResult } from "../ai/provider";
-import { cardTextsPrompt, conceptPrompt } from "./prompts";
+import { cardTextsPrompt, conceptPrompt, gentlerScenePrompt } from "./prompts";
 import {
   cardTextsSchema,
   conceptSchema,
@@ -81,6 +81,22 @@ export async function generateConcept(brief: OracleBrief) {
       return issues.length ? { ok: false, issues } : { ok: true, value: p.data };
     },
   });
+}
+
+/** A scene refused by the image filter, described again without the details filters flag. */
+export async function rewriteRefusedScene(card: Pick<OracleCard, "name_en" | "essence" | "visual">): Promise<string> {
+  const { system, user } = gentlerScenePrompt(card);
+  const { value } = await askJson<string>({
+    system,
+    user,
+    maxTokens: 800,
+    parse: (raw) => {
+      const visual = (raw as { visual?: unknown } | null)?.visual;
+      if (typeof visual !== "string" || visual.trim().length < 40) return { ok: false, issues: ['ต้องมี "visual" เป็นคำบรรยายภาพภาษาอังกฤษ'] };
+      return { ok: true, value: visual.trim().slice(0, 1200) };
+    },
+  });
+  return value;
 }
 
 /** Writes the full text of up to 8 cards at a time, in the context of the whole deck. */

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BriefForm } from "@/components/admin/oracle/BriefForm";
+import { FreshOnReturn } from "@/components/admin/oracle/FreshOnReturn";
 import { OracleCardFace } from "@/components/oracle/OracleCardFace";
 import { requireAdminPage } from "@/lib/admin";
 
@@ -44,6 +45,7 @@ export default async function AdminOraclePage() {
 
   return (
     <div className="space-y-10">
+      <FreshOnReturn />
       <header>
         <p className="eyebrow">Oracle Studio</p>
         <h1 className="mt-2 text-3xl font-semibold">สร้างไพ่ออราเคิล</h1>

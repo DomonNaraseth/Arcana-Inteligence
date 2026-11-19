@@ -136,6 +136,7 @@ export function OracleStudio({ initialDeck }: { initialDeck: OracleDeck }) {
     let done = 0;
     let failed = 0;
     let fatal: string | null = null;
+    let lastError = "";
     for (const c of pending) {
       if (stop.current) break;
       setJob({ kind: "paint", done, total: pending.length, current: `${c.number}. ${c.name}` });
@@ -144,6 +145,7 @@ export function OracleStudio({ initialDeck }: { initialDeck: OracleDeck }) {
         done += 1;
       } catch (err) {
         failed += 1;
+        lastError = (err as Error).message;
         // a refused or unconfigured gateway refuses every card: stop instead of burning the queue
         if (/ปฏิเสธ|Configuration Missing/.test((err as Error).message)) {
           fatal = (err as Error).message;
@@ -154,7 +156,11 @@ export function OracleStudio({ initialDeck }: { initialDeck: OracleDeck }) {
     }
     setJob(null);
     if (fatal) say(false, fatal);
-    else say(failed === 0, `สร้างภาพสำเร็จ ${done} ใบ${failed ? ` · ไม่สำเร็จ ${failed} ใบ (กดอีกครั้งเพื่อลองใหม่เฉพาะใบที่เหลือ)` : ""}`);
+    else
+      say(
+        failed === 0,
+        `สร้างภาพสำเร็จ ${done} ใบ${failed ? ` · ไม่สำเร็จ ${failed} ใบ — ${lastError} (กดอีกครั้งเพื่อลองใหม่เฉพาะใบที่เหลือ)` : ""}`,
+      );
   }
 
   async function act(key: string, fn: () => Promise<unknown>, ok?: string) {

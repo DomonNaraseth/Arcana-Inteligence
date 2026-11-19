@@ -21,7 +21,9 @@ export function oracleFailure(err: unknown, where: string): NextResponse {
     const text =
       err.reason === "not_configured"
         ? "ยังไม่ได้เชื่อม Vercel AI Gateway สำหรับสร้างภาพ (Configuration Missing)"
-        : err.reason === "refused"
+        : err.reason === "moderated"
+          ? "ระบบกรองเนื้อหาของ AI สร้างภาพไม่รับฉากของไพ่ใบนี้ แม้เขียนฉากใหม่ให้นุ่มนวลขึ้นแล้ว — ลองแก้คำบรรยายภาพ (visual) ของใบนี้เอง แล้วกดสร้างภาพอีกครั้ง"
+          : err.reason === "refused"
           ? "AI Gateway ปฏิเสธการสร้างภาพ — ตรวจเครดิต AI Gateway ของทีมใน Vercel"
           : "สร้างภาพไม่สำเร็จชั่วคราว กรุณาลองใหม่";
     return fail(err.reason === "not_configured" ? "ai_not_configured" : "ai_unavailable", text, 502);
