@@ -29,7 +29,12 @@ export function ShopQrField({ value, onChange }: { value: string; onChange: (v: 
   const [readError, setReadError] = useState<string | null>(null);
   const [testQr, setTestQr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
   const check = value.trim() ? checkThaiQr(value) : null;
+
+  useEffect(() => {
+    if (textRef.current && textRef.current.value !== value) textRef.current.value = value;
+  }, [value]);
 
   useEffect(() => {
     let live = true;
@@ -92,10 +97,12 @@ export function ShopQrField({ value, onChange }: { value: string; onChange: (v: 
       </div>
       {readError && <p className="mt-2 text-xs text-amber-200">{readError}</p>}
 
-      <details className="mt-3" open={Boolean(value) && !check?.ok}>
+      <details className="mt-3">
         <summary className="cursor-pointer text-xs text-ivory-dim">หรือวางข้อความของ QR</summary>
+        {/* uncontrolled: React never writes the text back while someone types; an upload or "remove" syncs it through the ref */}
         <textarea
-          value={value}
+          ref={textRef}
+          defaultValue={value}
           // trimmed when checked and saved, not per keystroke — a merchant name may hold spaces
           onChange={(e) => onChange(e.target.value.replace(/[\r\n]/g, ""))}
           rows={3}
